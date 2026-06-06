@@ -1,0 +1,20 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "globalChat",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "entries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "score", "order": "DESCENDING" },
+        { "fieldPath": "tiebreakerDistance", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

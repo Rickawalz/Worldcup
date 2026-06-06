@@ -1,0 +1,103 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return signedIn() && request.auth.token.admin == true;
+    }
+
+    function beforeFirstKickoff() {
+      return request.time < timestamp.value(2026, 6, 11, 19, 0, 0, 0);
+    }
+
+    function validUsername(username) {
+      return username is string
+        && username.matches('^[A-Za-z0-9_]{3,20}$');
+    }
+
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if isSelf(userId)
+        && validUsername(request.resource.data.username);
+      allow update: if isSelf(userId)
+        || isAdmin();
+      allow delete: if false;
+    }
+
+    match /usernames/{username} {
+      allow read: if true;
+      allow create: if signedIn()
+        && !exists(/databases/$(database)/documents/usernames/$(username));
+      allow update, delete: if false;
+    }
+
+    match /countries/{countryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /fixtures/{fixtureId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /standings/{groupId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /globalContest/config/{configId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /globalContest/brackets/{userId} {
+      allow read: if true;
+      allow create, update: if isSelf(userId)
+        && beforeFirstKickoff()
+        && request.resource.data.status in ['draft', 'submitted'];
+      allow delete: if false;
+    }
+
+    match /leaderboards/global/entries/{userId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /reports/{reportId} {
+      allow create: if signedIn()
+        && request.resource.data.reporterId == request.auth.uid;
+      allow read, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /globalChat/{messageId} {
+      allow read: if true;
+      allow create: if signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 1000;
+      allow update: if signedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.username == resource.data.username
+        && request.resource.data.text is string
+        && request.resource.data.text.size() <= 1000;
+      allow delete: if false;
+    }
+
+    match /adminOverrides/{overrideId} {
+      allow read, write: if isAdmin();
+    }
+  }
+}
