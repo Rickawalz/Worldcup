@@ -29,6 +29,8 @@ class LeaderboardScreen extends ConsumerWidget {
                     DataColumn(label: Text(strings.rank)),
                     DataColumn(label: Text(strings.username)),
                     DataColumn(label: Text(strings.score)),
+                    const DataColumn(label: Text('Group')),
+                    const DataColumn(label: Text('Knockout')),
                     DataColumn(label: Text(strings.tie)),
                   ],
                   rows: [
@@ -38,6 +40,8 @@ class LeaderboardScreen extends ConsumerWidget {
                           DataCell(Text('#${entry.rank}')),
                           DataCell(Text(entry.username)),
                           DataCell(Text('${entry.score}')),
+                          DataCell(Text('${entry.groupScore}')),
+                          DataCell(Text('${entry.knockoutScore}')),
                           DataCell(Text('${entry.tiebreakerDistance}')),
                         ],
                       ),

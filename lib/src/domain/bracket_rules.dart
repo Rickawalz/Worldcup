@@ -33,6 +33,72 @@ class BracketRules {
     'L',
   ];
 
+  static const groupCountryIds = <String, List<String>>{
+    'A': ['mexico', 'south_africa', 'south_korea', 'czech_republic'],
+    'B': ['canada', 'bosnia_herzegovina', 'qatar', 'switzerland'],
+    'C': ['brazil', 'morocco', 'haiti', 'scotland'],
+    'D': ['usa', 'paraguay', 'australia', 'turkey'],
+    'E': ['germany', 'curacao', 'cote_divoire', 'ecuador'],
+    'F': ['netherlands', 'japan', 'sweden', 'tunisia'],
+    'G': ['belgium', 'egypt', 'iran', 'new_zealand'],
+    'H': ['spain', 'cabo_verde', 'saudi_arabia', 'uruguay'],
+    'I': ['france', 'senegal', 'iraq', 'norway'],
+    'J': ['argentina', 'algeria', 'austria', 'jordan'],
+    'K': ['portugal', 'congo_dr', 'uzbekistan', 'colombia'],
+    'L': ['england', 'croatia', 'ghana', 'panama'],
+  };
+
+  static const officialCountryIds = [
+    'mexico',
+    'south_africa',
+    'south_korea',
+    'czech_republic',
+    'canada',
+    'bosnia_herzegovina',
+    'qatar',
+    'switzerland',
+    'brazil',
+    'morocco',
+    'haiti',
+    'scotland',
+    'usa',
+    'paraguay',
+    'australia',
+    'turkey',
+    'germany',
+    'curacao',
+    'cote_divoire',
+    'ecuador',
+    'netherlands',
+    'japan',
+    'sweden',
+    'tunisia',
+    'belgium',
+    'egypt',
+    'iran',
+    'new_zealand',
+    'spain',
+    'cabo_verde',
+    'saudi_arabia',
+    'uruguay',
+    'france',
+    'senegal',
+    'iraq',
+    'norway',
+    'argentina',
+    'algeria',
+    'austria',
+    'jordan',
+    'portugal',
+    'congo_dr',
+    'uzbekistan',
+    'colombia',
+    'england',
+    'croatia',
+    'ghana',
+    'panama',
+  ];
+
   static const roundOf32Slots = [
     BracketSlot(
       id: 'm73',
@@ -346,6 +412,24 @@ class BracketRules {
     final winnerSource = roundOf32Slot.sourceA;
     final assignments = thirdPlaceAssignments(bracket);
     return assignments[winnerSource];
+  }
+
+  static List<String> resolveSlotParticipantIds(
+    Bracket bracket,
+    BracketSlot slot,
+  ) {
+    final participants = <String>[];
+    for (final source in [slot.sourceA, slot.sourceB]) {
+      var effectiveSource = source;
+      if (source.startsWith('3rd ')) {
+        effectiveSource = resolvedThirdPlaceSource(bracket, slot) ?? source;
+      }
+      final countryId = resolveSourceCountryId(bracket, effectiveSource);
+      if (countryId != null && countryId.isNotEmpty) {
+        participants.add(countryId);
+      }
+    }
+    return participants.toSet().toList(growable: false);
   }
 
   static Map<String, String> thirdPlaceAssignments(Bracket bracket) {

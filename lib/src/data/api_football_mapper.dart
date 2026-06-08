@@ -8,6 +8,7 @@ class ApiFootballMapper {
     final league = _map(response['league']);
     final teams = _map(response['teams']);
     final goals = _map(response['goals']);
+    final venue = _map(fixture['venue']);
     final home = _map(teams['home']);
     final away = _map(teams['away']);
     final status = _map(fixture['status']);
@@ -26,6 +27,8 @@ class ApiFootballMapper {
       awayCountryId: _countryIdFromApi(away['id']),
       homeScore: (goals['home'] as num?)?.toInt(),
       awayScore: (goals['away'] as num?)?.toInt(),
+      venueName: venue['name'] as String?,
+      venueCity: venue['city'] as String?,
       winnerCountryId:
           home['winner'] == true
               ? _countryIdFromApi(home['id'])
@@ -65,6 +68,10 @@ class ApiFootballMapper {
     if (normalized.contains('round of 16')) return TournamentStage.roundOf16;
     if (normalized.contains('quarter')) return TournamentStage.quarterfinal;
     if (normalized.contains('semi')) return TournamentStage.semifinal;
+    if (normalized.contains('third place') ||
+        normalized.contains('play-off for third place')) {
+      return TournamentStage.thirdPlace;
+    }
     if (normalized.contains('final')) return TournamentStage.finalMatch;
     return TournamentStage.group;
   }

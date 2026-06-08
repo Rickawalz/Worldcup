@@ -14,6 +14,19 @@ void main() {
     );
   });
 
+  test('localizes PDF wallchart title and credit', () {
+    expect(
+      const AppStrings(Locale('en')).pdfBracketTitle('Ricky2026'),
+      'Ricky2026 World Cup 2026 Bracket',
+    );
+    expect(
+      const AppStrings(Locale('es')).pdfBracketTitle('Ricky2026'),
+      'Bracket Mundial 2026 de Ricky2026',
+    );
+    expect(const AppStrings(Locale('en')).pdfAppCredit, 'App created by Ricky');
+    expect(const AppStrings(Locale('es')).pdfAppCredit, 'App creada por Ricky');
+  });
+
   test('toggles app locale between English and Spanish', () {
     appLocaleNotifier.value = const Locale('en');
 

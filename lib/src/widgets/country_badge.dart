@@ -1,16 +1,26 @@
 import 'package:flutter/material.dart';
 
 import '../domain/models.dart';
+import '../localization/country_names.dart';
+import 'country_flags.dart';
 
 class CountryBadge extends StatelessWidget {
-  const CountryBadge({required this.country, this.compact = false, super.key});
+  const CountryBadge({
+    required this.country,
+    this.compact = false,
+    this.abbreviationOnly = false,
+    super.key,
+  });
 
   final Country country;
   final bool compact;
+  final bool abbreviationOnly;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final name = countryDisplayName(context, country);
+    final emoji = flagEmoji(country);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -28,8 +38,11 @@ class CountryBadge extends StatelessWidget {
                   color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   alignment: Alignment.center,
                   child: Text(
-                    country.abbreviation.characters.take(2).toString(),
-                    style: textTheme.labelSmall,
+                    emoji ?? country.abbreviation.characters.take(2).toString(),
+                    style:
+                        emoji == null
+                            ? textTheme.labelSmall
+                            : textTheme.titleMedium,
                   ),
                 ),
           ),
@@ -37,9 +50,11 @@ class CountryBadge extends StatelessWidget {
         const SizedBox(width: 8),
         Flexible(
           child: Text(
-            compact
-                ? country.name
-                : '${country.name} (${country.abbreviation})',
+            abbreviationOnly
+                ? country.abbreviation
+                : compact
+                ? name
+                : '$name (${country.abbreviation})',
             overflow: TextOverflow.ellipsis,
           ),
         ),

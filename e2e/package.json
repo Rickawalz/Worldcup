@@ -1,0 +1,13 @@
+{
+  "name": "world-cup-bracket-e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:staging": "playwright test --config=playwright.config.mjs",
+    "test:staging:headed": "playwright test --config=playwright.config.mjs --headed",
+    "install:browsers": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0"
+  }
+}

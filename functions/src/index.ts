@@ -167,7 +167,7 @@ export const scoreBracketOnResult = onDocumentWritten(
 );
 
 export const sendLockReminders = onSchedule("every 24 hours", async () => {
-  const config = await db.doc("globalContest/config/current").get();
+  const config = await db.doc("globalContest/current/config/current").get();
   const lockAtRaw = config.get("lockAt");
   if (!lockAtRaw) {
     return;
@@ -205,7 +205,7 @@ async function fetchApiFootball<T>(path: string, key: string): Promise<T> {
 }
 
 async function rebuildLeaderboard(): Promise<void> {
-  const brackets = await db.collection("globalContest/brackets").get();
+  const brackets = await db.collection("globalContest/current/brackets").get();
   const rows = brackets.docs.map((doc) => {
     const data = doc.data();
     return {

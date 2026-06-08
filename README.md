@@ -98,6 +98,99 @@ Start Firebase emulators after configuring Firebase:
 firebase emulators:start
 ```
 
+## Fixture Schedule Seeding
+
+The app keeps the published 2026 schedule in `lib/src/data/fixture_seed_data.dart`.
+Local sample fixtures use that same data. To inspect the generated Firestore
+documents without writing anything:
+
+```bash
+cd functions
+npm run seed:fixtures:dry-run
+```
+
+To seed the Firestore emulator, start the emulator first and then run:
+
+```bash
+cd functions
+FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 npm run seed:fixtures
+```
+
+To seed production, authenticate application default credentials and set the
+Firebase project id:
+
+```bash
+gcloud auth application-default login
+cd functions
+GCLOUD_PROJECT=your-firebase-project-id npm run seed:fixtures
+```
+
+The script writes 104 documents to `/fixtures/{matchId}` with `merge: true`, so
+admin-entered scores are not cleared by schedule metadata reseeds unless the
+seed data explicitly contains those fields.
+
+## Staging Test Data
+
+Local scripts can create deterministic staging data for end-to-end testing
+without Cloud Functions. They refuse to write unless you target the Firestore
+emulator or the staging Firebase project `testing-fe25d`.
+
+Dry-run the commands first:
+
+```bash
+npm --prefix functions run test:brackets:dry-run -- --count=25 --seed=demo1
+npm --prefix functions run test:results:dry-run -- --seed=demo1
+npm --prefix functions run test:reset:dry-run -- --seed=demo1
+```
+
+Write staging test data:
+
+```bash
+GCLOUD_PROJECT=testing-fe25d npm --prefix functions run test:brackets -- --count=25 --seed=demo1
+GCLOUD_PROJECT=testing-fe25d npm --prefix functions run test:results -- --seed=demo1
+```
+
+Reset staging test data and restore seeded fixtures with no scores:
+
+```bash
+GCLOUD_PROJECT=testing-fe25d npm --prefix functions run test:reset -- --seed=demo1
+```
+
+Generated users, usernames, brackets, leaderboard entries, and audit rows are
+marked with `isTestData: true` and `testRunId`, so reset only removes generated
+test records. The reset also clears `/standings`, resets official results, and
+restores `/fixtures` from `lib/src/data/fixture_seed_data.dart`.
+
+## Staging Browser Smoke Tests
+
+The `e2e/` package contains read-only Playwright smoke tests for the deployed
+staging site. These tests sign in as the admin account, visit the main tabs, and
+verify the admin sections render without clicking save or recalculation actions.
+
+Install the E2E dependencies and Chromium once:
+
+```bash
+npm --prefix e2e install
+npm --prefix e2e run install:browsers
+```
+
+Run against staging with admin credentials from environment variables:
+
+```bash
+E2E_ADMIN_EMAIL=rgw1985@hotmail.com \
+E2E_ADMIN_PASSWORD='your-admin-password' \
+npm --prefix e2e run test:staging
+```
+
+The default base URL is `https://testing-fe25d.web.app`. Override it when needed:
+
+```bash
+E2E_BASE_URL=https://testing-fe25d.web.app \
+E2E_ADMIN_EMAIL=rgw1985@hotmail.com \
+E2E_ADMIN_PASSWORD='your-admin-password' \
+npm --prefix e2e run test:staging
+```
+
 Build platform targets:
 
 ```bash

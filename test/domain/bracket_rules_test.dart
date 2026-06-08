@@ -30,6 +30,23 @@ void main() {
       expect(slots.last.id, 'm104');
     });
 
+    test('models official FIFA 2026 group membership', () {
+      expect(BracketRules.groupCountryIds['A'], [
+        'mexico',
+        'south_africa',
+        'south_korea',
+        'czech_republic',
+      ]);
+      expect(BracketRules.groupCountryIds['L'], [
+        'england',
+        'croatia',
+        'ghana',
+        'panama',
+      ]);
+      expect(BracketRules.officialCountryIds, hasLength(48));
+      expect(BracketRules.officialCountryIds.toSet(), hasLength(48));
+    });
+
     test(
       'requires top three groups, best thirds, and knockouts before submit',
       () {
@@ -88,6 +105,13 @@ void main() {
           ),
           isFalse,
         );
+        expect(
+          BracketRules.canSubmit(
+            completeBracket.copyWith(status: BracketStatus.submitted),
+            config,
+          ),
+          isTrue,
+        );
       },
     );
 
@@ -111,6 +135,48 @@ void main() {
       expect(BracketRules.thirdPlaceCombinationKey(bracket), 'CDEFGIKL');
       expect(BracketRules.resolvedThirdPlaceSource(bracket, match79), '3C');
       expect(BracketRules.resolveSourceCountryId(bracket, '3C'), 'C_3');
+    });
+
+    test('resolves knockout dropdown participants from predicted path', () {
+      final bracket = Bracket.empty('user').copyWith(
+        groupPicks: [
+          for (final groupId in BracketRules.groupIds)
+            GroupPick(
+              groupId: groupId,
+              firstCountryId: '${groupId}_1',
+              secondCountryId: '${groupId}_2',
+              thirdCountryId: '${groupId}_3',
+            ),
+        ],
+        bestThirdGroupIds: const ['C', 'D', 'E', 'F', 'G', 'I', 'K', 'L'],
+        knockoutPicks: const [
+          KnockoutPick(
+            slotId: 'm73',
+            stage: TournamentStage.roundOf32,
+            winnerCountryId: 'A_2',
+          ),
+          KnockoutPick(
+            slotId: 'm75',
+            stage: TournamentStage.roundOf32,
+            winnerCountryId: 'F_1',
+          ),
+        ],
+      );
+      final match73 = BracketRules.knockoutSlots().firstWhere(
+        (slot) => slot.id == 'm73',
+      );
+      final match90 = BracketRules.knockoutSlots().firstWhere(
+        (slot) => slot.id == 'm90',
+      );
+
+      expect(BracketRules.resolveSlotParticipantIds(bracket, match73), [
+        'A_2',
+        'B_2',
+      ]);
+      expect(BracketRules.resolveSlotParticipantIds(bracket, match90), [
+        'A_2',
+        'F_1',
+      ]);
     });
   });
 }

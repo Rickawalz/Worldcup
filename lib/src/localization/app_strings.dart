@@ -43,7 +43,9 @@ class AppStrings {
   String get home => isSpanish ? 'Inicio' : 'Home';
   String get bracket => isSpanish ? 'Bracket' : 'Bracket';
   String get standings => isSpanish ? 'Tabla' : 'Standings';
+  String get schedule => isSpanish ? 'Calendario' : 'Schedule';
   String get leaders => isSpanish ? 'Líderes' : 'Leaders';
+  String get players => isSpanish ? 'Jugadores' : 'Players';
   String get profile => isSpanish ? 'Perfil' : 'Profile';
   String get chat => isSpanish ? 'Chat' : 'Chat';
 
@@ -58,9 +60,17 @@ class AppStrings {
   String get startFree => isSpanish ? 'Empieza gratis' : 'Start free';
   String get createUsernameBeforeBracket =>
       isSpanish
-          ? 'Crea un perfil de usuario antes de armar tu bracket.'
-          : 'Create a username profile before building your bracket.';
-  String get createUsername => isSpanish ? 'Crear usuario' : 'Create username';
+          ? 'Inicia sesión o crea una cuenta antes de armar tu bracket.'
+          : 'Sign in or create an account before building your bracket.';
+  String get createUsername => isSpanish ? 'Iniciar sesión' : 'Sign in';
+  String get signedOutTitle =>
+      isSpanish ? 'Sesión cerrada' : 'You are signed out';
+  String get signedOutBody =>
+      isSpanish
+          ? 'Inicia sesión o crea una cuenta para crear tu bracket, ver jugadores y usar el chat.'
+          : 'Sign in or create an account to build your bracket, view players, and use chat.';
+  String get signInOrCreateAccount =>
+      isSpanish ? 'Iniciar sesión o crear cuenta' : 'Sign in or create account';
   String welcome(String username) =>
       isSpanish ? 'Bienvenido, $username' : 'Welcome, $username';
   String get profilePublicFree =>
@@ -94,16 +104,52 @@ class AppStrings {
       isSpanish
           ? 'Crea tu perfil gratis de bracket'
           : 'Create your free bracket profile';
+  String get accountAccess =>
+      isSpanish ? 'Acceso a tu bracket' : 'Bracket account access';
   String get onboardingIntro =>
       isSpanish
-          ? 'Elige un usuario único para guardar tu bracket. Más adelante puedes vincular una cuenta para recuperar tu perfil en iPhone, Android, navegador, Windows y macOS.'
-          : 'Pick a unique username to save your bracket. Account linking can be added later for recovery across iPhone, Android, browser, Windows, and macOS.';
+          ? 'Inicia sesión o crea una cuenta con usuario, contraseña y correo o teléfono. Tu usuario es público; tu contacto queda privado.'
+          : 'Sign in or create an account with a username, password, and email or phone. Your username is public; your contact info stays private.';
+  String get alreadySignedIn =>
+      isSpanish
+          ? 'Ya iniciaste sesión en esta cuenta.'
+          : 'You are already signed in to this account.';
   String get username => isSpanish ? 'Usuario' : 'Username';
+  String get usernameOrEmail =>
+      isSpanish ? 'Usuario o correo' : 'Username or email';
+  String get usernameOrEmailRequired =>
+      isSpanish
+          ? 'Escribe tu usuario o correo.'
+          : 'Enter your username or email.';
   String get usernameHelp =>
       isSpanish
           ? '3-20 letras, números o guiones bajos'
           : '3-20 letters, numbers, or underscores';
   String get createProfile => isSpanish ? 'Crear perfil' : 'Create profile';
+  String get createAccount => isSpanish ? 'Crear cuenta' : 'Create account';
+  String get email => isSpanish ? 'Correo' : 'Email';
+  String get phone => isSpanish ? 'Teléfono' : 'Phone';
+  String get emailOrPhoneHelp =>
+      isSpanish
+          ? 'Necesitas correo o teléfono. El correo permite restablecer contraseña.'
+          : 'Email or phone is required. Email enables password reset.';
+  String get emailOrPhoneRequired =>
+      isSpanish
+          ? 'Escribe un correo o teléfono.'
+          : 'Enter an email or phone number.';
+  String get passwordHelp =>
+      isSpanish ? 'Mínimo 6 caracteres' : 'Minimum 6 characters';
+  String get passwordMinLength =>
+      isSpanish
+          ? 'La contraseña debe tener al menos 6 caracteres.'
+          : 'Password must be at least 6 characters.';
+  String get forgotPassword =>
+      isSpanish ? 'Olvidé mi contraseña' : 'Forgot password?';
+  String get sendingPasswordReset => isSpanish ? 'Enviando...' : 'Sending...';
+  String get passwordResetSent =>
+      isSpanish
+          ? 'Si la cuenta tiene correo, se envió un enlace para restablecer la contraseña.'
+          : 'If the account has an email, a password reset link was sent.';
 
   String get yourGlobalBracket =>
       isSpanish ? 'Tu bracket global' : 'Your global bracket';
@@ -115,6 +161,10 @@ class AppStrings {
       isSpanish
           ? 'El autoguardado está activado. Completa cada grupo y cada ronda antes del primer partido.'
           : 'Autosave is enabled. Complete every group and knockout slot before the first kickoff.';
+  String get bracketSubmitted =>
+      isSpanish
+          ? 'Bracket enviado. Puedes seguir editando hasta el bloqueo.'
+          : 'Bracket submitted. You can keep editing until lock.';
   String get groupStage => isSpanish ? 'Fase de grupos' : 'Group stage';
   String get groupInstructions =>
       isSpanish
@@ -157,11 +207,45 @@ class AppStrings {
           ? 'Completa todas las selecciones antes de enviar.'
           : 'Complete all picks before submitting.';
   String get submitBracket => isSpanish ? 'Enviar bracket' : 'Submit bracket';
+  String get exportPdf => isSpanish ? 'Exportar PDF' : 'Export PDF';
+  String pdfBracketTitle(String username) =>
+      isSpanish
+          ? 'Bracket Mundial 2026 de $username'
+          : '$username World Cup 2026 Bracket';
+  String get pdfAppCredit =>
+      isSpanish ? 'App creada por Ricky' : 'App created by Ricky';
+  String get pdfChampion => isSpanish ? 'Campeón' : 'Champion';
+  String get pdfGroupPicks =>
+      isSpanish ? 'Selecciones de grupo' : 'Group Picks';
+  String get pdfFirstPlace => isSpanish ? '1ro' : '1st';
+  String get pdfSecondPlace => isSpanish ? '2do' : '2nd';
+  String get pdfThirdPlace => isSpanish ? '3ro' : '3rd';
+  String get pdfBestThirdColumn => isSpanish ? 'Mejor 3ro' : 'Best 3rd';
+  String get pdfYes => isSpanish ? 'Sí' : 'Yes';
+  String get pdfTbd => isSpanish ? 'Por definir' : 'TBD';
+  String get submittedBracket => isSpanish ? 'Bracket enviado' : 'Submitted';
+  String get bracketSubmitSuccess =>
+      isSpanish ? 'Bracket enviado.' : 'Bracket submitted.';
+  String bracketSubmitFailed(Object error) =>
+      isSpanish ? 'No se pudo enviar: $error' : 'Could not submit: $error';
   String get roundOf32 => isSpanish ? 'Ronda de 32' : 'Round of 32';
   String get roundOf16 => isSpanish ? 'Ronda de 16' : 'Round of 16';
   String get quarterfinals => isSpanish ? 'Cuartos de final' : 'Quarterfinals';
   String get semifinals => isSpanish ? 'Semifinales' : 'Semifinals';
   String get finalRound => isSpanish ? 'Final' : 'Final';
+
+  String get playersIntro =>
+      isSpanish
+          ? 'Ve los brackets enviados por otros jugadores.'
+          : 'See submitted brackets from other players.';
+  String get noSubmittedBrackets =>
+      isSpanish
+          ? 'Todavía no hay brackets enviados.'
+          : 'No submitted brackets yet.';
+  String get publicBracketUnavailable =>
+      isSpanish
+          ? 'Este bracket no está enviado o no está disponible.'
+          : 'This bracket has not been submitted or is unavailable.';
 
   String get globalLeaderboard =>
       isSpanish ? 'Tabla global' : 'Global leaderboard';
@@ -174,7 +258,7 @@ class AppStrings {
   String get tie => isSpanish ? 'Desempate' : 'Tie';
 
   String get teamsFlagsFixtures =>
-      isSpanish ? 'Equipos, banderas y partidos' : 'Teams, flags, and fixtures';
+      isSpanish ? 'Equipos, banderas y partidos' : 'Teams, flags, and games';
   String get countryDataExplainer =>
       isSpanish
           ? 'Los países usan API-Football como fuente principal con banderas de respaldo incluidas.'
@@ -182,24 +266,37 @@ class AppStrings {
   String get fixtureSyncPreview =>
       isSpanish
           ? 'Vista previa de partidos sincronizados'
-          : 'Fixture sync preview';
+          : 'Game sync preview';
   String get vs => isSpanish ? 'contra' : 'vs';
+  String get todaysGames => isSpanish ? 'Partidos de hoy' : "Today's games";
+  String get scheduleIntro =>
+      isSpanish
+          ? 'Busca partidos por día con horarios locales, banderas, sedes y resultados.'
+          : 'Browse matches by day with local kickoff times, flags, venues, and results.';
+  String get today => isSpanish ? 'Hoy' : 'Today';
+  String get previousDay => isSpanish ? 'Día anterior' : 'Previous day';
+  String get nextDay => isSpanish ? 'Día siguiente' : 'Next day';
+  String get chooseDate => isSpanish ? 'Elegir fecha' : 'Choose date';
+  String get noMatchesOnDate =>
+      isSpanish ? 'No hay partidos en esta fecha.' : 'No matches on this date.';
+  String get venue => isSpanish ? 'Sede' : 'Venue';
+  String get matchStatus => isSpanish ? 'Estado' : 'Status';
+  String get winnerLabel => isSpanish ? 'Ganador' : 'Winner';
+  String get tbd => isSpanish ? 'Por definir' : 'TBD';
 
   String get publicProfile => isSpanish ? 'Perfil público' : 'Public profile';
   String get noRecoveryLinked =>
-      isSpanish
-          ? 'Sin cuenta de recuperación vinculada'
-          : 'No recovery account linked';
+      isSpanish ? 'Cuenta con contraseña' : 'Password account';
   String linked(String providers) =>
       isSpanish ? 'Vinculado: $providers' : 'Linked: $providers';
-  String get accountRecovery =>
-      isSpanish ? 'Recuperación de cuenta' : 'Account recovery';
+  String get accountRecovery => isSpanish ? 'Cuenta' : 'Account';
   String get accountRecoveryBody =>
       isSpanish
-          ? 'La vinculación opcional ayuda a recuperar brackets en varios dispositivos sin dejar de ser gratis.'
-          : 'Optional linking helps recover brackets across devices while keeping signup free.';
+          ? 'Tu usuario es permanente. Si agregaste correo, puedes restablecer la contraseña desde la pantalla de inicio.'
+          : 'Your username is permanent. If you added email, you can reset your password from the sign-in screen.';
   String linkProvider(String provider) =>
       isSpanish ? 'Vincular $provider' : 'Link $provider';
+  String get signOut => isSpanish ? 'Cerrar sesión' : 'Sign out';
   String get lockNotifications =>
       isSpanish
           ? 'Notificaciones de bloqueo y tabla'
@@ -230,10 +327,20 @@ class AppStrings {
   String get adminEmail => isSpanish ? 'Correo de admin' : 'Admin email';
   String get password => isSpanish ? 'Contraseña' : 'Password';
   String get signIn => isSpanish ? 'Iniciar sesión' : 'Sign in';
+  String get signInRequired =>
+      isSpanish ? 'Inicia sesión para continuar' : 'Sign in to continue';
+  String get signInRequiredBody =>
+      isSpanish
+          ? 'Crea una cuenta o inicia sesión para ver esta parte de la app.'
+          : 'Create an account or sign in to view this part of the app.';
   String get adminEmailLocked =>
       isSpanish
           ? 'Solo rgw1985@hotmail.com puede acceder como admin.'
           : 'Only rgw1985@hotmail.com can access admin.';
+  String get adminProfileLoading =>
+      isSpanish
+          ? 'Inicio de sesión correcto. Cargando perfil de admin...'
+          : 'Sign-in succeeded. Loading admin profile...';
   String get passwordRequired =>
       isSpanish ? 'Escribe la contraseña.' : 'Enter the password.';
   String get adminEmailNotConfigured =>
@@ -249,7 +356,7 @@ class AppStrings {
   String get apiFootballSyncBody =>
       isSpanish
           ? 'Revisa el estado, actualiza partidos/tablas e inspecciona errores del proveedor.'
-          : 'Review sync status, trigger fixture/standings refresh, and inspect provider errors.';
+          : 'Review sync status, trigger game/standings refresh, and inspect provider errors.';
   String get syncNow => isSpanish ? 'Sincronizar' : 'Sync now';
   String get teamsAndFlags =>
       isSpanish ? 'Equipos y banderas' : 'Teams and flags';
@@ -259,13 +366,12 @@ class AppStrings {
           : 'Override country names, abbreviations, API IDs, flag URLs, and fallback asset keys.';
   String get reviewTeams => isSpanish ? 'Revisar equipos' : 'Review teams';
   String get fixturesAndResults =>
-      isSpanish ? 'Partidos y resultados' : 'Fixtures and results';
+      isSpanish ? 'Partidos y resultados' : 'Games and results';
   String get fixturesAndResultsBody =>
       isSpanish
           ? 'Corrige horarios, estados, marcadores, ganadores y bloqueo del bracket.'
           : 'Correct kickoff times, statuses, scores, winners, and bracket lock timing.';
-  String get reviewFixtures =>
-      isSpanish ? 'Revisar partidos' : 'Review fixtures';
+  String get reviewFixtures => isSpanish ? 'Revisar partidos' : 'Review games';
   String get moderation => isSpanish ? 'Moderación' : 'Moderation';
   String get moderationBody =>
       isSpanish
@@ -275,7 +381,7 @@ class AppStrings {
   String loadedCountries(int count) =>
       isSpanish ? 'Países cargados: $count' : 'Loaded countries: $count';
   String loadedFixtures(int count) =>
-      isSpanish ? 'Partidos cargados: $count' : 'Loaded fixtures: $count';
+      isSpanish ? 'Partidos cargados: $count' : 'Loaded games: $count';
 
   String get globalChat => isSpanish ? 'Chat global' : 'Global chat';
   String get chatExplainer =>

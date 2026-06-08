@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "821105413205",
+    "project_id": "testing-fe25d",
+    "storage_bucket": "testing-fe25d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:821105413205:android:db8c37e9e1cea45548d8dc",
+        "android_client_info": {
+          "package_name": "com.example.world_cup_bracket"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAgp4wexwd3-BYzhal22ByuixKAEfuC7Xg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

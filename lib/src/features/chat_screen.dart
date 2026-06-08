@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../data/providers.dart';
 import '../domain/models.dart';
 import '../localization/app_strings.dart';
+import '../widgets/dashboard.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key});
@@ -35,19 +36,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  strings.globalChat,
-                  style: Theme.of(context).textTheme.headlineMedium,
-                ),
-                const SizedBox(height: 8),
-                Text(strings.chatExplainer),
-              ],
-            ),
+          child: DashboardHeader(
+            title: strings.globalChat,
+            subtitle: strings.chatExplainer,
+            icon: Icons.chat_bubble_outline,
+            stats: [
+              DashboardStat(
+                label: 'live room',
+                value: 'Fans',
+                icon: Icons.forum_outlined,
+              ),
+            ],
           ),
         ),
         Expanded(

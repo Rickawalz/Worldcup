@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../data/providers.dart';
 import '../domain/models.dart';
 import '../localization/app_strings.dart';
+import '../widgets/dashboard.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -25,14 +26,26 @@ class ProfileScreen extends ConsumerWidget {
             ),
           );
         }
-        return ListView(
-          padding: const EdgeInsets.all(24),
-          children: [
-            Text(
-              strings.publicProfile,
-              style: Theme.of(context).textTheme.headlineMedium,
+        return DashboardPage(
+          title: strings.publicProfile,
+          subtitle:
+              'Manage your account, bracket status, notifications, and profile reports.',
+          icon: Icons.person_outline,
+          stats: [
+            DashboardStat(
+              label: 'profile',
+              value: value.username,
+              icon: Icons.verified_user_outlined,
             ),
-            const SizedBox(height: 16),
+            if (bracket.valueOrNull != null)
+              DashboardStat(
+                label: bracket.valueOrNull!.status.name,
+                value: 'Bracket',
+                icon: Icons.account_tree_outlined,
+                color: DashboardColors.sky,
+              ),
+          ],
+          children: [
             Card(
               child: ListTile(
                 leading: const CircleAvatar(child: Icon(Icons.person)),
@@ -47,7 +60,7 @@ class ProfileScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 16),
-            _AccountLinkCard(user: value),
+            const _AccountCard(),
             const SizedBox(height: 16),
             _NotificationCard(),
             const SizedBox(height: 16),
@@ -82,13 +95,18 @@ class ProfileScreen extends ConsumerWidget {
   }
 }
 
-class _AccountLinkCard extends ConsumerWidget {
-  const _AccountLinkCard({required this.user});
-
-  final AppUser user;
+class _AccountCard extends ConsumerStatefulWidget {
+  const _AccountCard();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_AccountCard> createState() => _AccountCardState();
+}
+
+class _AccountCardState extends ConsumerState<_AccountCard> {
+  bool _isSigningOut = false;
+
+  @override
+  Widget build(BuildContext context) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -102,25 +120,47 @@ class _AccountLinkCard extends ConsumerWidget {
             const SizedBox(height: 8),
             Text(context.strings.accountRecoveryBody),
             const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              children: [
-                for (final provider in AuthProviderLink.values)
-                  OutlinedButton(
-                    onPressed:
-                        user.linkedProviders.contains(provider)
-                            ? null
-                            : () => ref
-                                .read(appRepositoryProvider)
-                                .linkAccount(provider),
-                    child: Text(context.strings.linkProvider(provider.name)),
-                  ),
-              ],
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: _isSigningOut ? null : _signOut,
+                icon:
+                    _isSigningOut
+                        ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                        : const Icon(Icons.logout),
+                label: Text(context.strings.signOut),
+              ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _signOut() async {
+    setState(() => _isSigningOut = true);
+    try {
+      await ref.read(appRepositoryProvider).signOut();
+      ref.invalidate(currentUserProvider);
+      ref.invalidate(myBracketProvider);
+      ref.invalidate(globalChatMessagesProvider);
+      if (mounted) {
+        context.go('/');
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not sign out: $error')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSigningOut = false);
+      }
+    }
   }
 }
 

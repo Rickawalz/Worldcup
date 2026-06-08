@@ -47,6 +47,9 @@ dependencies:
   collection: ^1.19.1
   google_sign_in: ^7.2.0
   sign_in_with_apple: ^7.0.1
+  pdf: ^3.11.3
+  printing: ^5.14.3
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:
