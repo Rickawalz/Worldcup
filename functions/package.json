@@ -6,14 +6,18 @@
     "build": "tsc",
     "serve": "npm run build && firebase emulators:start --only functions,firestore,auth",
     "lint": "tsc --noEmit",
+    "test": "npm run build && node --test test/*.test.mjs",
     "seed:fixtures": "node scripts/seed-fixtures.mjs",
     "seed:fixtures:dry-run": "node scripts/seed-fixtures.mjs --dry-run",
+    "seed:countries": "node scripts/seed-countries.mjs",
+    "seed:countries:dry-run": "node scripts/seed-countries.mjs --dry-run",
     "test:brackets": "node scripts/create-test-brackets.mjs",
     "test:brackets:dry-run": "node scripts/create-test-brackets.mjs --dry-run",
     "test:results": "node scripts/simulate-test-results.mjs",
     "test:results:dry-run": "node scripts/simulate-test-results.mjs --dry-run",
     "test:reset": "node scripts/reset-test-data.mjs",
-    "test:reset:dry-run": "node scripts/reset-test-data.mjs --dry-run"
+    "test:reset:dry-run": "node scripts/reset-test-data.mjs --dry-run",
+    "set:admin-claim": "node scripts/set-admin-claim.mjs"
   },
   "engines": {
     "node": "20"

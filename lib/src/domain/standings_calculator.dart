@@ -4,6 +4,8 @@ import 'models.dart';
 class StandingsCalculator {
   const StandingsCalculator();
 
+  static const _maxFormLength = 5;
+
   List<GroupStanding> calculate({
     required Iterable<Fixture> fixtures,
     required Map<String, List<String>> overrideOrdersByGroup,
@@ -34,16 +36,22 @@ class StandingsCalculator {
       for (final countryId in countryIds)
         countryId: _MutableStanding(countryId),
     };
-    for (final fixture in fixtures) {
-      if (fixture.stage != TournamentStage.group ||
-          fixture.status != FixtureStatus.finished ||
-          fixture.roundLabel.trim().toUpperCase() != 'GROUP $groupId' ||
-          fixture.homeCountryId == null ||
-          fixture.awayCountryId == null ||
-          fixture.homeScore == null ||
-          fixture.awayScore == null) {
-        continue;
-      }
+    final groupFixtures =
+        fixtures
+            .where(
+              (fixture) =>
+                  fixture.stage == TournamentStage.group &&
+                  fixture.status == FixtureStatus.finished &&
+                  fixture.roundLabel.trim().toUpperCase() == 'GROUP $groupId' &&
+                  fixture.homeCountryId != null &&
+                  fixture.awayCountryId != null &&
+                  fixture.homeScore != null &&
+                  fixture.awayScore != null,
+            )
+            .toList()
+          ..sort((a, b) => a.kickoff.compareTo(b.kickoff));
+
+    for (final fixture in groupFixtures) {
       final home = stats[fixture.homeCountryId];
       final away = stats[fixture.awayCountryId];
       if (home == null || away == null) {
@@ -110,6 +118,7 @@ class _MutableStanding {
   int lost = 0;
   int goalsFor = 0;
   int goalsAgainst = 0;
+  final List<String> _recentResults = [];
 
   int get goalDifference => goalsFor - goalsAgainst;
   int get points => won * 3 + drawn;
@@ -120,11 +129,24 @@ class _MutableStanding {
     this.goalsAgainst += goalsAgainst;
     if (goalsFor > goalsAgainst) {
       won++;
+      _recentResults.add('W');
     } else if (goalsFor < goalsAgainst) {
       lost++;
+      _recentResults.add('L');
     } else {
       drawn++;
+      _recentResults.add('D');
     }
+    while (_recentResults.length > StandingsCalculator._maxFormLength) {
+      _recentResults.removeAt(0);
+    }
+  }
+
+  String get form {
+    if (_recentResults.isEmpty) {
+      return '';
+    }
+    return _recentResults.join(',');
   }
 
   StandingRow toRow() {
@@ -139,6 +161,7 @@ class _MutableStanding {
       goalsAgainst: goalsAgainst,
       goalDifference: goalDifference,
       points: points,
+      form: form,
     );
   }
 }

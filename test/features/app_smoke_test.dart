@@ -16,7 +16,7 @@ void main() {
     expect(find.text('Build your full 2026 World Cup bracket'), findsOneWidget);
     expect(find.text('You are signed out'), findsOneWidget);
     expect(find.text('Build your bracket'), findsOneWidget);
-    expect(find.text('Track the schedule'), findsOneWidget);
+    expect(find.text("Amy's Calendar"), findsWidgets);
     expect(find.text('Sign in or create account'), findsOneWidget);
   });
 

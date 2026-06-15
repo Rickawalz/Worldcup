@@ -12,7 +12,7 @@ import 'features/leaderboard_screen.dart';
 import 'features/onboarding_screen.dart';
 import 'features/players_screen.dart';
 import 'features/profile_screen.dart';
-import 'features/schedule_screen.dart';
+import 'features/amys_calendar_screen.dart';
 import 'features/standings_screen.dart';
 import 'localization/app_strings.dart';
 import 'widgets/dashboard.dart';
@@ -74,9 +74,13 @@ final _router = GoRouter(
         ),
         GoRoute(
           path: '/schedule',
+          redirect: (context, state) => '/amys-calendar',
+        ),
+        GoRoute(
+          path: '/amys-calendar',
           builder:
               (context, state) =>
-                  const _RequireSignedIn(child: ScheduleScreen()),
+                  const _RequireSignedIn(child: AmysCalendarScreen()),
         ),
         GoRoute(
           path: '/leaderboard',
@@ -193,6 +197,8 @@ class AppScaffold extends ConsumerWidget {
           bottomNavigationBar:
               MediaQuery.sizeOf(context).width < 900 && destinations.length >= 2
                   ? NavigationBar(
+                    labelBehavior:
+                        NavigationDestinationLabelBehavior.onlyShowSelected,
                     selectedIndex: selectedIndex < 0 ? 0 : selectedIndex,
                     onDestinationSelected: (index) {
                       context.go(destinations[index].path);
@@ -201,7 +207,11 @@ class AppScaffold extends ConsumerWidget {
                       for (final destination in destinations)
                         NavigationDestination(
                           icon: Icon(destination.icon),
-                          label: destination.label(strings),
+                          label: destination.navLabel(
+                            strings,
+                            useMobileLabels: true,
+                          ),
+                          tooltip: destination.label(strings),
                         ),
                     ],
                   )
@@ -215,9 +225,23 @@ class AppScaffold extends ConsumerWidget {
 const _destinations = [
   _homeDestination,
   _Destination('/bracket', _bracketLabel, Icons.account_tree_outlined),
-  _Destination('/standings', _standingsLabel, Icons.table_rows_outlined),
-  _Destination('/schedule', _scheduleLabel, Icons.calendar_month_outlined),
-  _Destination('/players', _playersLabel, Icons.groups_outlined),
+  _Destination(
+    '/standings',
+    _standingsLabel,
+    Icons.table_rows_outlined,
+    mobileLabel: _standingsMobileLabel,
+  ),
+  _Destination(
+    '/amys-calendar',
+    _amysCalendarLabel,
+    Icons.calendar_month_outlined,
+  ),
+  _Destination(
+    '/players',
+    _playersLabel,
+    Icons.groups_outlined,
+    mobileLabel: _playersMobileLabel,
+  ),
   _Destination('/chat', _chatLabel, Icons.chat_bubble_outline),
   _Destination('/profile', _profileLabel, Icons.person_outline),
 ];
@@ -225,18 +249,28 @@ const _destinations = [
 const _homeDestination = _Destination('/', _homeLabel, Icons.home_outlined);
 
 class _Destination {
-  const _Destination(this.path, this.label, this.icon);
+  const _Destination(this.path, this.label, this.icon, {this.mobileLabel});
 
   final String path;
   final String Function(AppStrings strings) label;
   final IconData icon;
+  final String Function(AppStrings strings)? mobileLabel;
+
+  String navLabel(AppStrings strings, {required bool useMobileLabels}) {
+    if (useMobileLabels && mobileLabel != null) {
+      return mobileLabel!(strings);
+    }
+    return label(strings);
+  }
 }
 
 String _homeLabel(AppStrings strings) => strings.home;
 String _bracketLabel(AppStrings strings) => strings.bracket;
 String _standingsLabel(AppStrings strings) => strings.standings;
-String _scheduleLabel(AppStrings strings) => strings.schedule;
+String _amysCalendarLabel(AppStrings strings) => strings.amysCalendar;
 String _playersLabel(AppStrings strings) => strings.players;
+String _standingsMobileLabel(AppStrings strings) => strings.navStandingsShort;
+String _playersMobileLabel(AppStrings strings) => strings.navPlayersShort;
 String _chatLabel(AppStrings strings) => strings.chat;
 String _profileLabel(AppStrings strings) => strings.profile;
 

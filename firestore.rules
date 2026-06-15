@@ -10,8 +10,26 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == userId;
     }
 
+    function configuredAdminEmail() {
+      return 'rgw1985@hotmail.com';
+    }
+
+    function privateAccountEmail(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)/private/account).data;
+    }
+
     function isAdmin() {
-      return signedIn() && request.auth.token.admin == true;
+      return signedIn() && (
+        request.auth.token.admin == true
+        || request.auth.token.email == configuredAdminEmail()
+        || (
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)/private/account)
+          && (
+            privateAccountEmail(request.auth.uid).authEmail == configuredAdminEmail()
+            || privateAccountEmail(request.auth.uid).email == configuredAdminEmail()
+          )
+        )
+      );
     }
 
     function beforeFirstKickoff() {
@@ -120,6 +138,11 @@ service cloud.firestore {
 
     match /adminAuditLogs/{logId} {
       allow read, write: if isAdmin();
+    }
+
+    match /syncState/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
   }
 }

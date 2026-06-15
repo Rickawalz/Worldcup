@@ -1,329 +1,410 @@
 # Ricky's World Cup Bracket 2026
 
-A cross-platform Flutter app for running a 2026 FIFA World Cup bracket contest.
-Users create a profile, pick group advancers, fill the knockout bracket, export
-their bracket as a PDF wallchart, and compete on a public leaderboard.
+A cross-platform Flutter app for running a private 2026 FIFA World Cup bracket
+pool. Friends create an account, pick which teams advance from each group, fill
+out the full knockout bracket, and compete on a public leaderboard as real results
+come in.
 
-The app is designed to stay on the low-cost/free path: official match results,
-standings, contest settings, and leaderboard recalculation are managed from an
-in-app admin screen with Firestore writes instead of scheduled Cloud Functions.
+**Live site:** https://testing-fe25d.web.app
 
-## Features
+---
 
-- Dark World Cup dashboard UI for Home, Bracket, Standings, Schedule, Players,
-  Chat, Profile, and Admin.
-- Bracket picks with autosave, edit/resubmit support until lock, full knockout
-  wallchart, and localized PDF export.
-- Public Players tab with other users' submitted picks, flags, grouped cards,
-  and score breakdowns.
-- Schedule tab with date controls, kickoff time, teams, flags, status, scores,
-  and venue details.
-- Standings tab with calculated group tables, game cards, and a read-only
-  official knockout bracket that fills from admin-entered scores.
-- Admin tools for match results, group advancers, standings overrides,
-  leaderboard recalculation, contest settings, and audit logs.
-- English and Spanish localization for the main app and PDF export.
+## What this app does
 
-## Platforms
+This is a **bracket contest manager**, not a live scores website. The core loop:
 
-- Flutter Web
-- iOS
-- Android
-- macOS
-- Windows
+1. **Players** sign up, build their bracket, and submit before the contest locks.
+2. **Official results** (group advancers, knockout winners, final score) are
+   recorded by an admin or pulled automatically from [football-data.org](https://www.football-data.org/).
+3. **Scores** are calculated from each player's picks vs. official results.
+4. **Leaderboard** ranks everyone; players can browse each other's brackets.
+
+The app covers the expanded **48-team, 12-group** 2026 World Cup format with
+**104 games** (72 group stage + 32 knockout).
+
+---
+
+## How the contest works (player view)
+
+### 1. Sign up and profile
+
+- Firebase Authentication (email/password).
+- Choose a unique username stored in Firestore.
+- English or Spanish UI.
+
+### 2. Build a bracket (`/bracket`)
+
+Players make three kinds of picks:
+
+| Pick type | What you choose |
+|-----------|-----------------|
+| **Group advancers** | Top 2 from each of 12 groups (A–L) + 8 best third-place teams |
+| **Knockout winners** | Winner of every knockout game from Round of 32 through the Final |
+| **Final tiebreaker** | Predicted final score (used to break ties on the leaderboard) |
+
+- Picks **autosave** while editing.
+- Bracket can be **edited and resubmitted** until the contest locks.
+- Export a **PDF wallchart** of your picks (localized, with flags).
+
+### 3. Browse the tournament
+
+| Tab | Route | Purpose |
+|-----|-------|---------|
+| Home | `/` | Dashboard overview |
+| Bracket | `/bracket` | Your picks |
+| Standings | `/standings` | Live group tables + official knockout bracket |
+| Schedule | `/amys-calendar` | All 104 games with times, scores, venues |
+| Players | `/players` | Other users' submitted brackets and score breakdowns |
+| Chat | `/chat` | Global contest chat |
+| Profile | `/profile` | Account settings |
+| Leaderboard | (via nav) | Rankings |
+
+### 4. Submit and lock
+
+- Contest **lock time** is set by admin (typically first kickoff).
+- After lock, brackets become read-only.
+- Only **submitted** brackets appear on the leaderboard.
+
+---
+
+## How scoring works
+
+Scoring lives in `lib/src/domain/scoring.dart` and runs whenever the admin
+recalculates the leaderboard (or Cloud Functions rebuild it after a result).
+
+**Points per correct pick** is configurable (default set in contest config).
+
+| Category | How points are earned |
+|----------|----------------------|
+| **Group stage** | +1 point per correctly picked team that actually advances (top 2 + best 8 thirds) |
+| **Knockout** | +1 point per correctly picked knockout winner (each round) |
+| **Tiebreaker** | Final score prediction distance breaks ties when total points are equal (lower distance wins) |
+
+Official results come from `globalContest/current/officialResults/current`:
+
+- `advancingCountryIds` — which 32 teams advanced from groups
+- `knockoutWinnersBySlot` — winner of each knockout slot (`m73`–`m104`)
+- `finalChampionScore` / `finalRunnerUpScore` — for tiebreaker
+
+---
+
+## How match results get into the app
+
+There are **two paths** for official data. Both write to the same Firestore
+documents; they never fight each other.
+
+```
+                    ┌─────────────────────┐
+                    │  /fixtures/m1–m104 │
+                    │  (scores, status)   │
+                    └──────────┬──────────┘
+                               │
+              ┌────────────────┼────────────────┐
+              │                │                │
+     ┌────────▼────────┐  ┌────▼─────┐  ┌──────▼──────┐
+     │ Admin manual    │  │ football │  │  Fixture    │
+     │ entry (/admin)  │  │ -data.org│  │  seed data  │
+     └────────┬────────┘  │ auto sync│  └─────────────┘
+              │           └────┬─────┘
+              │                │
+              └────────┬───────┘
+                       │
+            ┌──────────▼──────────┐
+            │ Cloud Functions      │
+            │ side effects:        │
+            │ • group standings    │
+            │ • knockout winners   │
+            │ • leaderboard rebuild│
+            └─────────────────────┘
+```
+
+### Admin manual entry (always available)
+
+Open `/admin` (long-press the app title, or navigate directly). Admin can:
+
+- Enter game scores and status
+- Confirm group advancers
+- Override standings order
+- Set contest lock time and submission rules
+- **Recalculate leaderboard**
+- View audit log
+
+**Admin wins:** if a game was manually saved by admin (`updatedBy` is set),
+automatic sync **skips** that game.
+
+### Automatic score sync (free, via football-data.org)
+
+Cloud Functions pull World Cup data from the **free** football-data.org tier
+(World Cup is included at no cost).
+
+| Trigger | Behavior |
+|---------|----------|
+| **Scheduled** | Every 15 min, but only during active game windows (~10 min before kickoff through ~2.5 hr after) |
+| **Manual** | Admin → Settings → **Sync now** |
+
+Each sync:
+
+1. Fetches World Cup teams + matches from football-data.org
+2. Maps API teams to local countries by name / abbreviation (TLA)
+3. Matches games to `/fixtures/m1`–`m104` by team pair + kickoff date
+4. Merges `status`, `homeScore`, `awayScore`, `winnerCountryId`
+5. Triggers standings recalc, knockout official results, and leaderboard rebuild
+
+**Knockout games** (`m73`–`m104`) are not matched until teams are known — those
+fixtures start without `homeCountryId`/`awayCountryId` in seed data. Group-stage
+games (`m1`–`m72`) sync automatically.
+
+Sync status is stored at `/syncState/current`.
+
+---
 
 ## Architecture
 
-- Flutter, Riverpod, and GoRouter for the client app.
-- Firebase Auth for sign-in and account identity.
-- Cloud Firestore for users, brackets, countries, fixtures, official results,
-  standings, leaderboard entries, contest config, chat, reports, and audit logs.
-- Firebase custom claims plus the configured admin email for admin access.
-- Local Node.js scripts for fixture seeding and staging test data.
-- Playwright for deployed staging smoke tests.
+| Layer | Technology |
+|-------|------------|
+| Client | Flutter, Riverpod, GoRouter |
+| Auth | Firebase Authentication |
+| Database | Cloud Firestore |
+| Backend | Cloud Functions (Node.js 20, TypeScript) |
+| Hosting | Firebase Hosting (Flutter web build) |
+| Score API | [football-data.org](https://www.football-data.org/) (free tier) |
 
-The manual admin path is the source of truth for official scores. Admin actions
-write to Firestore and update derived data through app/repository logic. Cloud
-Functions dependencies may exist in the package, but the launch workflow does not
-require paid scheduled functions for score syncing.
+### Key source files
+
+| Area | Location |
+|------|----------|
+| App routes & shell | `lib/src/app.dart` |
+| Screens | `lib/src/features/` |
+| Domain models | `lib/src/domain/models.dart` |
+| Bracket rules (groups, slots) | `lib/src/domain/bracket_rules.dart` |
+| Scoring | `lib/src/domain/scoring.dart` |
+| Standings calculator | `functions/src/standings-calculator.ts` |
+| Score sync | `functions/src/sync-world-cup.ts`, `football-data-client.ts` |
+| Cloud Functions entry | `functions/src/index.ts` |
+| 2026 schedule seed | `lib/src/data/fixture_seed_data.dart` |
+| Firestore rules | `firestore.rules` |
+
+### Firestore collections (main)
+
+| Path | Contents |
+|------|----------|
+| `/users/{userId}` | Profile, username, settings |
+| `/usernames/{name}` | Username uniqueness |
+| `/countries/{id}` | 48 teams, flags, abbreviations |
+| `/fixtures/m1`–`m104` | Schedule, scores, status, venues |
+| `/standings/{groupId}` | Calculated group tables |
+| `/globalContest/current/config/current` | Lock time, points per pick |
+| `/globalContest/current/officialResults/current` | Advancers, knockout winners, final score |
+| `/globalContest/current/brackets/{userId}` | Each player's bracket |
+| `/leaderboards/global/entries/{userId}` | Public rankings |
+| `/globalChat/{messageId}` | Chat messages |
+| `/syncState/current` | Last sync time, counts, errors |
+| `/adminAuditLogs/{id}` | Admin action history |
+
+---
+
+## Features
+
+- Dark World Cup dashboard UI
+- Bracket picks with autosave, edit/resubmit until lock, PDF wallchart export
+- Public Players tab with other users' picks and score breakdowns
+- Schedule tab with dates, kickoffs, teams, flags, scores, venues
+- Standings with calculated group tables and official knockout bracket
+- Admin tools for results, advancers, standings, contest settings, audit log
+- English and Spanish localization (UI + PDF)
+
+## Platforms
+
+Flutter Web · iOS · Android · macOS · Windows
+
+---
+
+## Score sync setup
+
+### 1. Get a free API token
+
+Register at [football-data.org/client/register](https://www.football-data.org/client/register)
+and copy your token from the dashboard.
+
+### 2. Store in Firebase secrets
+
+Requires Firebase **Blaze** plan for scheduled/callable functions.
+
+```bash
+firebase functions:secrets:set FOOTBALL_DATA_TOKEN --project testing-fe25d
+```
+
+### 3. Deploy functions
+
+```bash
+firebase deploy --only functions --project testing-fe25d
+```
+
+### 4. Seed countries (first-time setup)
+
+```bash
+GCLOUD_PROJECT=testing-fe25d npm --prefix functions run seed:countries
+```
+
+Team IDs are enriched from football-data.org on each sync — no manual ID mapping
+needed.
+
+### Rate limits
+
+Free tier: **10 requests/minute**. Match-window polling + manual sync stay well
+within this for a small pool (~5–20 users).
+
+### Diagnose sync locally
+
+```bash
+gcloud auth application-default login
+FOOTBALL_DATA_TOKEN='your-token' \
+GOOGLE_CLOUD_QUOTA_PROJECT=testing-fe25d \
+GCLOUD_PROJECT=testing-fe25d \
+node functions/scripts/diagnose-sync.mjs
+```
+
+---
 
 ## Prerequisites
 
-- Flutter SDK with Dart `^3.7.2`.
-- Firebase CLI if you want to run emulators or deploy Hosting.
-- Node.js `20` for the `functions/` scripts.
-- A Firebase project with Authentication and Firestore enabled.
-
-Install Flutter dependencies:
+- Flutter SDK with Dart `^3.7.2`
+- Firebase CLI (emulators / deploy)
+- Node.js 20 (`functions/` scripts and Cloud Functions)
+- Firebase project with Auth + Firestore enabled
 
 ```bash
 flutter pub get
-```
-
-Install script dependencies when needed:
-
-```bash
 npm --prefix functions install
-npm --prefix e2e install
+npm --prefix e2e install   # optional, for browser smoke tests
 ```
 
-## Running The App
+---
 
-Run locally in Chrome:
+## Running locally
 
 ```bash
 flutter run -d chrome --dart-define=ADMIN_EMAIL=rgw1985@hotmail.com
 ```
 
-Run on a connected device or another supported target:
+Other devices:
 
 ```bash
 flutter devices
 flutter run -d <device-id> --dart-define=ADMIN_EMAIL=rgw1985@hotmail.com
 ```
 
-Start Firebase emulators when testing Firestore/Auth locally:
+Firebase emulators:
 
 ```bash
 firebase emulators:start
 ```
 
-## Build And Deploy
+---
 
-Build the web app:
+## Build and deploy
 
 ```bash
+# Web build
 flutter build web --dart-define=ADMIN_EMAIL=rgw1985@hotmail.com
+
+# Deploy hosting + functions
+firebase deploy --only hosting,functions --project testing-fe25d
 ```
 
-Deploy to Firebase Hosting:
+Other platforms: `flutter build apk` · `flutter build ios` · `flutter build macos` · `flutter build windows`
+
+After deploy, hard-refresh or use incognito if the browser shows a cached bundle.
+
+---
+
+## Admin access
+
+- **URL:** `/admin` or long-press the app title
+- **Email:** `rgw1985@hotmail.com` (set via `--dart-define=ADMIN_EMAIL=...`)
+- **Auth:** Firebase sign-in + admin custom claim or configured admin email
+
+Grant admin claim:
 
 ```bash
-firebase deploy --only hosting --project testing-fe25d
+GOOGLE_CLOUD_QUOTA_PROJECT=testing-fe25d \
+GCLOUD_PROJECT=testing-fe25d \
+npm --prefix functions run set:admin-claim -- --email=rgw1985@hotmail.com
 ```
 
-Build other platforms:
+Admin password is managed in Firebase Authentication, not in this repo.
+
+---
+
+## Data seeding
+
+Official 2026 schedule: `lib/src/data/fixture_seed_data.dart` (104 games).
 
 ```bash
-flutter build apk
-flutter build ios
-flutter build macos
-flutter build windows
-```
-
-iOS builds require macOS and Xcode signing. Windows builds require the Flutter
-Windows toolchain on Windows.
-
-If a phone browser still shows an old version after deploy, clear that site's
-Chrome/Safari data or test in an incognito/private tab. Flutter web apps can be
-served from a cached bundle after a deploy.
-
-## Admin Access
-
-Open admin tools by navigating directly to `/admin` or by long-pressing the app
-title. The default admin email is:
-
-```text
-rgw1985@hotmail.com
-```
-
-Admin access is protected by:
-
-- The configured `ADMIN_EMAIL` build value.
-- The signed-in Firebase user's email.
-- Firebase admin custom claims/security rules for privileged data.
-
-The admin password is not stored in this repository. Manage the account password
-inside Firebase Authentication.
-
-Admin sections include:
-
-- Match results and game metadata.
-- Confirm group advancers.
-- Recalculate leaderboard.
-- Contest settings such as lock time and accepting bracket submissions.
-- Group standings override order.
-- Admin audit log.
-
-## Data Seeding And Staging Scripts
-
-The published 2026 schedule lives in
-`lib/src/data/fixture_seed_data.dart`. Local sample fixtures use the same data.
-
-Dry-run fixture seeding:
-
-```bash
+# Dry run
 npm --prefix functions run seed:fixtures:dry-run
-```
 
-Seed the Firestore emulator:
-
-```bash
+# Seed emulator
 FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 npm --prefix functions run seed:fixtures
-```
 
-Seed a Firebase project after authenticating with application default
-credentials:
-
-```bash
+# Seed production
 gcloud auth application-default login
 GCLOUD_PROJECT=testing-fe25d npm --prefix functions run seed:fixtures
+GCLOUD_PROJECT=testing-fe25d npm --prefix functions run seed:countries
 ```
 
-The fixture seed writes 104 `/fixtures/{matchId}` documents with `merge: true`.
-Schedule metadata reseeds do not clear admin-entered scores unless the seed data
-explicitly includes those fields.
+Fixture seed uses `merge: true` — reseeding schedule metadata does not wipe
+admin-entered scores unless those fields are included in the seed.
 
-### Staging Test Data
+### Staging test data
 
-These scripts create deterministic data for staging or the emulator. They are
-intended for demos and smoke tests, not production contest data.
-
-Dry-run first:
+For demos/smoke tests only (marked `isTestData: true`):
 
 ```bash
 npm --prefix functions run test:brackets:dry-run -- --count=25 --seed=demo1
-npm --prefix functions run test:results:dry-run -- --seed=demo1
-npm --prefix functions run test:reset:dry-run -- --seed=demo1
-```
-
-Write staging data:
-
-```bash
 GCLOUD_PROJECT=testing-fe25d npm --prefix functions run test:brackets -- --count=25 --seed=demo1
-GCLOUD_PROJECT=testing-fe25d npm --prefix functions run test:results -- --seed=demo1
-```
-
-Reset generated staging data:
-
-```bash
 GCLOUD_PROJECT=testing-fe25d npm --prefix functions run test:reset -- --seed=demo1
 ```
 
-Generated records are marked with `isTestData: true` and `testRunId`, so reset
-targets the generated users, usernames, brackets, leaderboard entries, audit
-rows, standings, official results, and seeded fixture state for that run.
+---
 
 ## Tests
 
-Run all Flutter tests:
-
 ```bash
-flutter test
+flutter test                    # Flutter unit + widget tests
+npm --prefix functions test     # Cloud Functions tests
+flutter analyze                 # Static analysis
 ```
 
-Run static analysis:
-
-```bash
-flutter analyze
-```
-
-Run a focused test file:
-
-```bash
-flutter test test/features/bracket_pdf_builder_test.dart
-```
-
-### Domain Tests
-
-Domain tests live in `test/domain/` and cover app logic that should work without
-rendering the UI:
-
-- `admin_access_test.dart`: admin email/claim access behavior.
-- `admin_results_test.dart`: official results, fixture result metadata, and
-  admin-related model behavior.
-- `api_football_mapper_test.dart`: mapping API-style football responses into
-  app fixture data.
-- `app_strings_test.dart`: localized strings, including PDF title/credit text.
-- `bracket_rules_test.dart`: official group membership, knockout slots,
-  third-place mapping, and bracket validation.
-- `chat_repository_test.dart`: in-memory repository flows for profiles, chat,
-  bracket visibility, editable submitted brackets, admin sign-in, and standings
-  recalculation.
-- `country_flags_test.dart`: flag fallback behavior.
-- `country_names_test.dart`: English/Spanish country display names.
-- `sample_data_test.dart`: country and fixture seed completeness.
-- `scoring_test.dart`: bracket scoring rules.
-- `standings_calculator_test.dart`: calculated group standings.
-- `username_validator_test.dart`: username validation and reserved names.
-
-### Feature And Widget Tests
-
-Feature tests live in `test/features/` and widget tests live in `test/widgets/`:
-
-- `app_smoke_test.dart`: app startup, landing page, and core navigation smoke
-  coverage.
-- `bracket_pdf_builder_test.dart`: localized PDF wallchart generation,
-  personalized title, credit, and flag-image path.
-- `bracket_wallchart_test.dart`: bracket wallchart and fallback editor.
-- `schedule_screen_test.dart`: daily schedule UI and match card display.
-- `standings_screen_test.dart`: standings match cards, flags, scores, venue, and
-  official knockout bracket rendering.
-- `country_badge_test.dart`: country badge display variants.
-- `dashboard_test.dart`: shared dashboard header/stat UI.
-
-## Staging Browser Smoke Tests
-
-The `e2e/` package contains read-only Playwright tests for the deployed staging
-site. They sign in as the admin account, visit the main tabs, and verify admin
-sections render without clicking save or recalculation actions.
-
-Install dependencies and Chromium once:
+### Staging browser smoke tests (Playwright)
 
 ```bash
 npm --prefix e2e install
 npm --prefix e2e run install:browsers
-```
 
-Run against the default staging URL, `https://testing-fe25d.web.app`:
-
-```bash
 E2E_ADMIN_EMAIL=rgw1985@hotmail.com \
-E2E_ADMIN_PASSWORD='your-admin-password' \
+E2E_ADMIN_PASSWORD='your-password' \
 npm --prefix e2e run test:staging
 ```
 
-Run headed mode for debugging:
+Default URL: `https://testing-fe25d.web.app`
 
-```bash
-E2E_ADMIN_EMAIL=rgw1985@hotmail.com \
-E2E_ADMIN_PASSWORD='your-admin-password' \
-npm --prefix e2e run test:staging:headed
-```
+---
 
-Override the base URL:
-
-```bash
-E2E_BASE_URL=https://testing-fe25d.web.app \
-E2E_ADMIN_EMAIL=rgw1985@hotmail.com \
-E2E_ADMIN_PASSWORD='your-admin-password' \
-npm --prefix e2e run test:staging
-```
-
-Playwright outputs traces, screenshots, and videos on failure under the `e2e/`
-test output folders.
-
-## Useful Checks Before Commit Or Deploy
+## Pre-commit / pre-deploy checklist
 
 ```bash
 flutter analyze
 flutter test
-npm --prefix functions run lint
+npm --prefix functions test
 ```
 
-For staging E2E coverage, also run:
-
-```bash
-E2E_ADMIN_EMAIL=rgw1985@hotmail.com \
-E2E_ADMIN_PASSWORD='your-admin-password' \
-npm --prefix e2e run test:staging
-```
+---
 
 ## Notes
 
-- Keep API keys and admin passwords out of Flutter client code and out of git.
-- Use dry-run script commands before writing staging data.
-- Keep the Admin screen as the manual fallback even if score-import scripts are
-  added later.
-- User-facing text should prefer "game" over "fixture"; internal model names may
-  still use `Fixture` and `/fixtures`.
+- Keep API tokens and admin passwords out of client code and git.
+- Use dry-run flags before writing staging data to production.
+- Admin manual entry remains the fallback if sync fails.
+- User-facing copy says **"game"**; internal models may still use `Fixture` and
+  `/fixtures`.

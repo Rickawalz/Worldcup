@@ -23,6 +23,8 @@ abstract class AppRepository {
 
   Stream<List<AdminAuditLog>> watchAdminAuditLogs();
 
+  Stream<ApiFootballSyncState> watchApiFootballSyncState();
+
   Stream<List<ChatMessage>> watchGlobalChatMessages();
 
   Future<AppUser> createAccount({
@@ -70,6 +72,8 @@ abstract class AppRepository {
   Future<LeaderboardRecalculationSummary> recalculateLeaderboard({
     String? note,
   });
+
+  Future<ApiFootballSyncSummary> triggerApiFootballSync();
 
   Future<void> updateContestConfig(
     GlobalContestConfig config, {

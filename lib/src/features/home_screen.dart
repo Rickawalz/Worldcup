@@ -120,9 +120,9 @@ class _WelcomeLanding extends StatelessWidget {
             ),
             _PreviewItem(
               icon: Icons.calendar_month_outlined,
-              title: 'Track the schedule',
+              title: "Amy's Calendar",
               body:
-                  'Browse matchdays, kickoff times, teams, flags, and venues.',
+                  'Browse the tournament calendar, scores, and filter by team.',
             ),
             _PreviewItem(
               icon: Icons.table_rows_outlined,
@@ -165,7 +165,7 @@ class _SignedInHome extends ConsumerWidget {
     return DashboardPage(
       title: strings.welcome(username),
       subtitle:
-          'Your World Cup command center: finish picks, watch the schedule, and keep an eye on the contest.',
+          "Your World Cup command center: finish picks, open Amy's Calendar, and keep an eye on the contest.",
       icon: Icons.dashboard_outlined,
       stats: [
         DashboardStat(
@@ -237,9 +237,9 @@ class _SignedInHome extends ConsumerWidget {
           children: [
             _MiniShortcut(
               icon: Icons.calendar_month_outlined,
-              title: strings.schedule,
-              body: 'Find upcoming games.',
-              onPressed: () => context.go('/schedule'),
+              title: strings.amysCalendar,
+              body: 'Find upcoming games and scores.',
+              onPressed: () => context.go('/amys-calendar'),
             ),
             _MiniShortcut(
               icon: Icons.table_rows_outlined,

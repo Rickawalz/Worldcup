@@ -577,6 +577,7 @@ class StandingRow {
     required this.goalsAgainst,
     required this.goalDifference,
     required this.points,
+    this.form = '',
   });
 
   final String countryId;
@@ -589,6 +590,8 @@ class StandingRow {
   final int goalsAgainst;
   final int goalDifference;
   final int points;
+  /// Recent results in chronological order, e.g. `W,D,L` (last five games).
+  final String form;
 
   factory StandingRow.empty(String countryId, int rank) => StandingRow(
     countryId: countryId,
@@ -601,6 +604,7 @@ class StandingRow {
     goalsAgainst: 0,
     goalDifference: 0,
     points: 0,
+    form: '',
   );
 
   factory StandingRow.fromMap(Map<String, Object?> map) {
@@ -615,6 +619,7 @@ class StandingRow {
       goalsAgainst: (map['goalsAgainst'] as num?)?.toInt() ?? 0,
       goalDifference: (map['goalDifference'] as num?)?.toInt() ?? 0,
       points: (map['points'] as num?)?.toInt() ?? 0,
+      form: map['form'] as String? ?? '',
     );
   }
 
@@ -629,6 +634,7 @@ class StandingRow {
     'goalsAgainst': goalsAgainst,
     'goalDifference': goalDifference,
     'points': points,
+    'form': form,
   };
 
   StandingRow copyWith({int? rank}) {
@@ -643,6 +649,7 @@ class StandingRow {
       goalsAgainst: goalsAgainst,
       goalDifference: goalDifference,
       points: points,
+      form: form,
     );
   }
 }
@@ -696,6 +703,115 @@ class StandingsRecalculationSummary {
 
   final int groupsUpdated;
   final DateTime recalculatedAt;
+}
+
+class ApiFootballSyncState {
+  const ApiFootballSyncState({
+    this.lastSyncAt,
+    this.lastError,
+    this.fixturesUpdated = 0,
+    this.skippedAdmin = 0,
+    this.skippedUnmatched = 0,
+    this.skippedUnchanged = 0,
+    this.knockoutResultsUpdated = 0,
+    this.apiFixturesReceived = 0,
+    this.localFixturesLoaded = 0,
+    this.countriesWithApiId = 0,
+    this.countriesEnrichedFromApi = 0,
+    this.source,
+  });
+
+  final DateTime? lastSyncAt;
+  final String? lastError;
+  final int fixturesUpdated;
+  final int skippedAdmin;
+  final int skippedUnmatched;
+  final int skippedUnchanged;
+  final int knockoutResultsUpdated;
+  final int apiFixturesReceived;
+  final int localFixturesLoaded;
+  final int countriesWithApiId;
+  final int countriesEnrichedFromApi;
+  final String? source;
+
+  factory ApiFootballSyncState.fromMap(Map<String, Object?> map) {
+    return ApiFootballSyncState(
+      lastSyncAt: _timestampFromDynamic(map['lastSyncAt']),
+      lastError: map['lastError'] as String?,
+      fixturesUpdated: (map['fixturesUpdated'] as num?)?.toInt() ?? 0,
+      skippedAdmin: (map['skippedAdmin'] as num?)?.toInt() ?? 0,
+      skippedUnmatched: (map['skippedUnmatched'] as num?)?.toInt() ?? 0,
+      skippedUnchanged: (map['skippedUnchanged'] as num?)?.toInt() ?? 0,
+      knockoutResultsUpdated:
+          (map['knockoutResultsUpdated'] as num?)?.toInt() ?? 0,
+      apiFixturesReceived: (map['apiFixturesReceived'] as num?)?.toInt() ?? 0,
+      localFixturesLoaded: (map['localFixturesLoaded'] as num?)?.toInt() ?? 0,
+      countriesWithApiId: (map['countriesWithApiId'] as num?)?.toInt() ?? 0,
+      countriesEnrichedFromApi:
+          (map['countriesEnrichedFromApi'] as num?)?.toInt() ?? 0,
+      source: map['source'] as String?,
+    );
+  }
+}
+
+class ApiFootballSyncSummary {
+  const ApiFootballSyncSummary({
+    required this.fixturesUpdated,
+    required this.skippedAdmin,
+    required this.skippedUnmatched,
+    required this.skippedUnchanged,
+    required this.knockoutResultsUpdated,
+    required this.apiFixturesReceived,
+    required this.localFixturesLoaded,
+    required this.countriesWithApiId,
+    required this.countriesEnrichedFromApi,
+    required this.source,
+  });
+
+  final int fixturesUpdated;
+  final int skippedAdmin;
+  final int skippedUnmatched;
+  final int skippedUnchanged;
+  final int knockoutResultsUpdated;
+  final int apiFixturesReceived;
+  final int localFixturesLoaded;
+  final int countriesWithApiId;
+  final int countriesEnrichedFromApi;
+  final String source;
+
+  factory ApiFootballSyncSummary.fromMap(Map<String, Object?> map) {
+    return ApiFootballSyncSummary(
+      fixturesUpdated: (map['fixturesUpdated'] as num?)?.toInt() ?? 0,
+      skippedAdmin: (map['skippedAdmin'] as num?)?.toInt() ?? 0,
+      skippedUnmatched: (map['skippedUnmatched'] as num?)?.toInt() ?? 0,
+      skippedUnchanged: (map['skippedUnchanged'] as num?)?.toInt() ?? 0,
+      knockoutResultsUpdated:
+          (map['knockoutResultsUpdated'] as num?)?.toInt() ?? 0,
+      apiFixturesReceived: (map['apiFixturesReceived'] as num?)?.toInt() ?? 0,
+      localFixturesLoaded: (map['localFixturesLoaded'] as num?)?.toInt() ?? 0,
+      countriesWithApiId: (map['countriesWithApiId'] as num?)?.toInt() ?? 0,
+      countriesEnrichedFromApi:
+          (map['countriesEnrichedFromApi'] as num?)?.toInt() ?? 0,
+      source: map['source'] as String? ?? 'manual',
+    );
+  }
+}
+
+DateTime? _timestampFromDynamic(Object? value) {
+  if (value == null) {
+    return null;
+  }
+  if (value is DateTime) {
+    return value;
+  }
+  if (value is String) {
+    return DateTime.tryParse(value);
+  }
+  final seconds = (value as dynamic).seconds;
+  if (seconds is int) {
+    return DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
+  }
+  return null;
 }
 
 enum AdminAuditOperation {

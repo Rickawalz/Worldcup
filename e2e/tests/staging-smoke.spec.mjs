@@ -27,7 +27,8 @@ test('admin can smoke test staging tabs without changing data', async ({
   await expectRoute(page, '/', /Build your full 2026 World Cup bracket|Welcome/i);
   await expectRoute(page, '/bracket', /Your Bracket|Group Picks|Champion/i);
   await expectRoute(page, '/standings', /Standings/i);
-  await expectRoute(page, '/schedule', /Schedule|Today's games/i);
+  await expectRoute(page, '/amys-calendar', /Amy's Calendar|Today's games/i);
+  await expectRoute(page, '/schedule', /Amy's Calendar|Today's games/i);
   await expectRoute(page, '/players', /Players/i);
   await expectRoute(page, '/leaderboard', /Global Leaderboard|Rank/i);
   await expectRoute(page, '/profile', /Profile|Sign out|Bracket/i);

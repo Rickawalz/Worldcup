@@ -20,6 +20,7 @@ class InMemoryAppRepository implements AppRepository {
     _bracketController.add(_bracket);
     _officialResultsController.add(_officialResults);
     _chatController.add(_chatMessages);
+    _syncStateController.add(_syncState);
   }
 
   final _userController = StreamController<AppUser?>.broadcast();
@@ -35,6 +36,8 @@ class InMemoryAppRepository implements AppRepository {
       StreamController<OfficialResults>.broadcast();
   final _auditController = StreamController<List<AdminAuditLog>>.broadcast();
   final _chatController = StreamController<List<ChatMessage>>.broadcast();
+  final _syncStateController =
+      StreamController<ApiFootballSyncState>.broadcast();
 
   AppUser? _user;
   GlobalContestConfig _config = GlobalContestConfig(
@@ -69,6 +72,7 @@ class InMemoryAppRepository implements AppRepository {
   ];
 
   final _auditLogs = <AdminAuditLog>[];
+  ApiFootballSyncState _syncState = const ApiFootballSyncState();
   final _chatMessages = <ChatMessage>[
     ChatMessage(
       id: 'chat-seed-1',
@@ -156,6 +160,12 @@ class InMemoryAppRepository implements AppRepository {
   Stream<List<AdminAuditLog>> watchAdminAuditLogs() async* {
     yield _auditLogs;
     yield* _auditController.stream;
+  }
+
+  @override
+  Stream<ApiFootballSyncState> watchApiFootballSyncState() async* {
+    yield _syncState;
+    yield* _syncStateController.stream;
   }
 
   @override
@@ -519,6 +529,34 @@ class InMemoryAppRepository implements AppRepository {
   }
 
   @override
+  Future<ApiFootballSyncSummary> triggerApiFootballSync() async {
+    _requireAdmin();
+    final now = DateTime.now();
+    _syncState = ApiFootballSyncState(
+      lastSyncAt: now,
+      fixturesUpdated: 0,
+      skippedAdmin: 0,
+      skippedUnmatched: 0,
+      skippedUnchanged: 0,
+      knockoutResultsUpdated: 0,
+      source: 'manual',
+    );
+    _syncStateController.add(_syncState);
+    return ApiFootballSyncSummary(
+      fixturesUpdated: 0,
+      skippedAdmin: 0,
+      skippedUnmatched: 0,
+      skippedUnchanged: 0,
+      knockoutResultsUpdated: 0,
+      apiFixturesReceived: 0,
+      localFixturesLoaded: _fixtures.length,
+      countriesWithApiId: sampleCountries.where((c) => c.apiFootballTeamId > 0).length,
+      countriesEnrichedFromApi: 0,
+      source: 'manual',
+    );
+  }
+
+  @override
   Future<void> updateContestConfig(
     GlobalContestConfig config, {
     String? note,
@@ -818,6 +856,7 @@ class InMemoryAppRepository implements AppRepository {
     _officialResultsController.close();
     _auditController.close();
     _chatController.close();
+    _syncStateController.close();
   }
 }
 

@@ -90,6 +90,7 @@ ThemeData buildDashboardTheme() {
               states.contains(WidgetState.selected)
                   ? DashboardColors.gold
                   : const Color(0xFFC4D3DD),
+          fontSize: 11,
           fontWeight:
               states.contains(WidgetState.selected)
                   ? FontWeight.w700

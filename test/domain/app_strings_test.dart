@@ -14,6 +14,13 @@ void main() {
     );
   });
 
+  test('provides Amy\'s Calendar label in English and Spanish', () {
+    expect(const AppStrings(Locale('en')).amysCalendar, "Amy's Calendar");
+    expect(const AppStrings(Locale('es')).amysCalendar, "Amy's Calendar");
+    expect(const AppStrings(Locale('en')).moreGames(2), '+2 more');
+    expect(const AppStrings(Locale('es')).moreGames(2), '+2 más');
+  });
+
   test('localizes PDF wallchart title and credit', () {
     expect(
       const AppStrings(Locale('en')).pdfBracketTitle('Ricky2026'),
@@ -25,6 +32,17 @@ void main() {
     );
     expect(const AppStrings(Locale('en')).pdfAppCredit, 'App created by Ricky');
     expect(const AppStrings(Locale('es')).pdfAppCredit, 'App creada por Ricky');
+  });
+
+  test('provides standings legend copy in both languages', () {
+    final english = const AppStrings(Locale('en'));
+    final spanish = const AppStrings(Locale('es'));
+
+    expect(english.standingsLegendTitle, 'What the columns mean');
+    expect(english.standingsLegendEntries.first.abbr, 'P');
+    expect(english.standingsLegendEntries.first.label, 'Played');
+    expect(spanish.standingsLegendTitle, 'Significado de las columnas');
+    expect(spanish.standingsLegendEntries.last.label, contains('Puntos'));
   });
 
   test('toggles app locale between English and Spanish', () {

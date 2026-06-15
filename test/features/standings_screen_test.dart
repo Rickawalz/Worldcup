@@ -20,7 +20,11 @@ void main() {
     await tester.pump();
 
     expect(find.text('Standings'), findsOneWidget);
+    expect(find.text('What the columns mean'), findsOneWidget);
+    expect(find.textContaining('Goals for'), findsOneWidget);
+    expect(find.textContaining('Points (3 for a win'), findsOneWidget);
     expect(find.text('Group A'), findsWidgets);
+    expect(find.byType(DataTable), findsWidgets);
     expect(find.text('Mexico'), findsWidgets);
     expect(find.text('South Africa'), findsWidgets);
     expect(find.text('2 - 1'), findsOneWidget);
@@ -36,6 +40,32 @@ void main() {
     expect(find.text('Knockout games'), findsOneWidget);
 
     expect(find.text('vs'), findsWidgets);
+  });
+
+  testWidgets('mobile standings uses compact rows and collapsible legend', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(_standingsTestApp());
+    await tester.pump();
+
+    expect(find.text('What the columns mean'), findsOneWidget);
+    expect(find.textContaining('Goals for'), findsNothing);
+    expect(find.byType(DataTable), findsNothing);
+    expect(find.text('GF'), findsWidgets);
+    expect(find.text('GD'), findsWidgets);
+    expect(find.textContaining('3 pts'), findsWidgets);
+    // Per-team stat blocks: header row sits directly above each team's values.
+    expect(find.text('P'), findsWidgets);
+    expect(find.text('W'), findsWidgets);
+
+    await tester.tap(find.text('What the columns mean'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Goals for'), findsOneWidget);
   });
 }
 
@@ -140,6 +170,7 @@ final _standings = [
         goalsAgainst: 1,
         goalDifference: 1,
         points: 3,
+        form: 'W',
       ),
       StandingRow(
         countryId: 'south_africa',
@@ -152,6 +183,7 @@ final _standings = [
         goalsAgainst: 2,
         goalDifference: -1,
         points: 0,
+        form: 'L',
       ),
     ],
   ),

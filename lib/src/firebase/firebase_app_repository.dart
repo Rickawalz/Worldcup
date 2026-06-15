@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart' as auth;
 import 'package:firebase_messaging/firebase_messaging.dart';
 
@@ -17,13 +18,18 @@ class FirebaseAppRepository implements AppRepository {
     required auth.FirebaseAuth firebaseAuth,
     required FirebaseFirestore firestore,
     required FirebaseMessaging messaging,
+    FirebaseFunctions? functions,
   }) : _auth = firebaseAuth,
        _firestore = firestore,
-       _messaging = messaging;
+       _messaging = messaging,
+       _functions =
+           functions ??
+           FirebaseFunctions.instanceFor(region: 'us-central1');
 
   final auth.FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
   final FirebaseMessaging _messaging;
+  final FirebaseFunctions _functions;
 
   String get _userId {
     final user = _auth.currentUser;
@@ -224,6 +230,22 @@ class FirebaseAppRepository implements AppRepository {
               .map((doc) => AdminAuditLog.fromMap(doc.id, doc.data()))
               .toList();
         });
+  }
+
+  @override
+  Stream<ApiFootballSyncState> watchApiFootballSyncState() {
+    return _firestore.doc('syncState/current').snapshots().map((snapshot) {
+      final data = snapshot.data();
+      if (data == null) {
+        return const ApiFootballSyncState();
+      }
+      final normalized = Map<String, Object?>.from(data);
+      final lastSyncAt = normalized['lastSyncAt'];
+      if (lastSyncAt is Timestamp) {
+        normalized['lastSyncAt'] = lastSyncAt.toDate().toIso8601String();
+      }
+      return ApiFootballSyncState.fromMap(normalized);
+    });
   }
 
   @override
@@ -700,6 +722,17 @@ class FirebaseAppRepository implements AppRepository {
       entriesUpdated: entries.length,
       recalculatedAt: now,
     );
+  }
+
+  @override
+  Future<ApiFootballSyncSummary> triggerApiFootballSync() async {
+    await _requireAdminProfile();
+    await _auth.currentUser?.getIdToken(true);
+    final result = await _functions
+        .httpsCallable('syncWorldCupDataNow')
+        .call();
+    final data = Map<String, Object?>.from(result.data as Map);
+    return ApiFootballSyncSummary.fromMap(data);
   }
 
   @override

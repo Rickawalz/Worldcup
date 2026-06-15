@@ -43,11 +43,43 @@ class AppStrings {
   String get home => isSpanish ? 'Inicio' : 'Home';
   String get bracket => isSpanish ? 'Bracket' : 'Bracket';
   String get standings => isSpanish ? 'Tabla' : 'Standings';
-  String get schedule => isSpanish ? 'Calendario' : 'Schedule';
+  String get standingsLegendTitle =>
+      isSpanish ? 'Significado de las columnas' : 'What the columns mean';
+  String get standingsLegendForm =>
+      isSpanish ? 'Forma reciente (últimos 5)' : 'Recent form (last 5 games)';
+  String showGroupGames(int count) =>
+      isSpanish ? 'Ver $count partidos' : 'Show $count games';
+  String get hideGroupGames =>
+      isSpanish ? 'Ocultar partidos' : 'Hide games';
+  List<StandingsLegendEntry> get standingsLegendEntries =>
+      isSpanish
+          ? const [
+            StandingsLegendEntry('P', 'Jugados'),
+            StandingsLegendEntry('W', 'Ganados'),
+            StandingsLegendEntry('D', 'Empates'),
+            StandingsLegendEntry('L', 'Perdidos'),
+            StandingsLegendEntry('GF', 'Goles a favor'),
+            StandingsLegendEntry('GA', 'Goles en contra'),
+            StandingsLegendEntry('GD', 'Diferencia de goles'),
+            StandingsLegendEntry('Pts', 'Puntos (3 por victoria, 1 por empate)'),
+          ]
+          : const [
+            StandingsLegendEntry('P', 'Played'),
+            StandingsLegendEntry('W', 'Won'),
+            StandingsLegendEntry('D', 'Drawn'),
+            StandingsLegendEntry('L', 'Lost'),
+            StandingsLegendEntry('GF', 'Goals for'),
+            StandingsLegendEntry('GA', 'Goals against'),
+            StandingsLegendEntry('GD', 'Goal difference'),
+            StandingsLegendEntry('Pts', 'Points (3 for a win, 1 for a draw)'),
+          ];
+  String get amysCalendar => "Amy's Calendar";
   String get leaders => isSpanish ? 'Líderes' : 'Leaders';
   String get players => isSpanish ? 'Jugadores' : 'Players';
   String get profile => isSpanish ? 'Perfil' : 'Profile';
   String get chat => isSpanish ? 'Chat' : 'Chat';
+  String get navStandingsShort => isSpanish ? 'Tabla' : 'Table';
+  String get navPlayersShort => isSpanish ? 'Lista' : 'Players';
 
   String get buildFullBracket =>
       isSpanish
@@ -269,14 +301,18 @@ class AppStrings {
           : 'Game sync preview';
   String get vs => isSpanish ? 'contra' : 'vs';
   String get todaysGames => isSpanish ? 'Partidos de hoy' : "Today's games";
-  String get scheduleIntro =>
+  String get amysCalendarIntro =>
       isSpanish
-          ? 'Busca partidos por día con horarios locales, banderas, sedes y resultados.'
-          : 'Browse matches by day with local kickoff times, flags, venues, and results.';
+          ? 'Calendario del torneo con partidos, resultados en vivo y filtro por equipo.'
+          : 'Tournament calendar with matchdays, live scores, and team filtering.';
+  String get filterByTeam =>
+      isSpanish ? 'Filtrar por equipo' : 'Filter by team';
+  String get allTeams => isSpanish ? 'Todos los equipos' : 'All teams';
+  String get totalGamesLabel => isSpanish ? 'partidos totales' : 'total games';
   String get today => isSpanish ? 'Hoy' : 'Today';
-  String get previousDay => isSpanish ? 'Día anterior' : 'Previous day';
-  String get nextDay => isSpanish ? 'Día siguiente' : 'Next day';
-  String get chooseDate => isSpanish ? 'Elegir fecha' : 'Choose date';
+  String get previousMonth => isSpanish ? 'Mes anterior' : 'Previous month';
+  String get nextMonth => isSpanish ? 'Mes siguiente' : 'Next month';
+  String moreGames(int count) => isSpanish ? '+$count más' : '+$count more';
   String get noMatchesOnDate =>
       isSpanish ? 'No hay partidos en esta fecha.' : 'No matches on this date.';
   String get venue => isSpanish ? 'Sede' : 'Venue';
@@ -352,11 +388,11 @@ class AppStrings {
           ? 'El acceso de producción se protege con Firebase custom claims y Cloud Functions. Estas pantallas definen la administración dentro de la app Flutter compartida.'
           : 'Production access is enforced with Firebase custom claims and Cloud Functions. These screens define the admin surface in the shared Flutter app.';
   String get apiFootballSync =>
-      isSpanish ? 'Sincronización API-Football' : 'API-Football sync';
+      isSpanish ? 'Sincronización de resultados' : 'Score sync';
   String get apiFootballSyncBody =>
       isSpanish
-          ? 'Revisa el estado, actualiza partidos/tablas e inspecciona errores del proveedor.'
-          : 'Review sync status, trigger game/standings refresh, and inspect provider errors.';
+          ? 'La sincronización automática consulta football-data.org solo cerca del horario de los partidos (hasta ~15 min después del final). Usa Sincronizar ahora para actualizaciones inmediatas. Los resultados manuales del admin siempre ganan.'
+          : 'Automatic sync polls football-data.org only around game times (up to ~15 minutes after full time). Use Sync now for immediate updates. Manual admin results always win.';
   String get syncNow => isSpanish ? 'Sincronizar' : 'Sync now';
   String get teamsAndFlags =>
       isSpanish ? 'Equipos y banderas' : 'Teams and flags';
@@ -410,4 +446,11 @@ class AppStrings {
           : 'Message must be 1,000 characters or fewer.';
   String get messageRequired =>
       isSpanish ? 'Escribe un mensaje primero.' : 'Write a message first.';
+}
+
+class StandingsLegendEntry {
+  const StandingsLegendEntry(this.abbr, this.label);
+
+  final String abbr;
+  final String label;
 }

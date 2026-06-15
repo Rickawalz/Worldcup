@@ -69,6 +69,12 @@ final adminAuditLogsProvider = StreamProvider<List<AdminAuditLog>>((ref) {
   return ref.watch(appRepositoryProvider).watchAdminAuditLogs();
 });
 
+final apiFootballSyncStateProvider = StreamProvider<ApiFootballSyncState>((
+  ref,
+) {
+  return ref.watch(appRepositoryProvider).watchApiFootballSyncState();
+});
+
 final globalChatMessagesProvider = StreamProvider<List<ChatMessage>>((ref) {
   return ref.watch(appRepositoryProvider).watchGlobalChatMessages();
 });

@@ -47,6 +47,7 @@ app.*.map.json
 # Firebase Functions
 functions/node_modules/
 functions/lib/
+functions/.env
 
 # Playwright E2E
 /test-results/

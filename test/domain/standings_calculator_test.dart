@@ -41,10 +41,47 @@ void main() {
     expect(groupA.rows.first.points, 3);
     expect(groupA.rows.first.goalDifference, 1);
     expect(groupA.rows.first.played, 1);
+    expect(groupA.rows.first.form, 'W');
     expect(
       groupA.rows.firstWhere((row) => row.countryId == 'south_africa').lost,
       1,
     );
+    expect(
+      groupA.rows.firstWhere((row) => row.countryId == 'south_africa').form,
+      'L',
+    );
+    expect(
+      groupA.rows.firstWhere((row) => row.countryId == 'south_korea').form,
+      'D',
+    );
+  });
+
+  test('form keeps only the last five results in chronological order', () {
+    final standings = const StandingsCalculator().calculate(
+      fixtures: [
+        for (var index = 0; index < 6; index++)
+          Fixture(
+            id: 'm$index',
+            externalId: '$index',
+            stage: TournamentStage.group,
+            roundLabel: 'Group A',
+            kickoff: DateTime.utc(2026, 6, 11 + index),
+            status: FixtureStatus.finished,
+            homeCountryId: 'mexico',
+            awayCountryId: 'south_africa',
+            homeScore: index.isEven ? 1 : 0,
+            awayScore: index.isEven ? 0 : 1,
+          ),
+      ],
+      overrideOrdersByGroup: const {},
+    );
+
+    final mexico = standings
+        .firstWhere((standing) => standing.groupId == 'A')
+        .rows
+        .firstWhere((row) => row.countryId == 'mexico');
+
+    expect(mexico.form.split(','), ['L', 'W', 'L', 'W', 'L']);
   });
 
   test('override order changes rank without changing calculated stats', () {

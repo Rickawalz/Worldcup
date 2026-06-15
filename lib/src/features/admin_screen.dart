@@ -191,7 +191,14 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
       case _AdminSection.leaderboard:
         return _RecalculateLeaderboardSection(officialResults: officialResults);
       case _AdminSection.settings:
-        return _ContestSettingsSection(config: config);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _ContestSettingsSection(config: config),
+            const SizedBox(height: 16),
+            const _ApiFootballSyncSection(),
+          ],
+        );
       case _AdminSection.auditLog:
         return auditLogs.when(
           data: (logs) => _AuditLogSection(logs: logs),
@@ -996,6 +1003,136 @@ class _RecalculateLeaderboardSectionState
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _ApiFootballSyncSection extends ConsumerStatefulWidget {
+  const _ApiFootballSyncSection();
+
+  @override
+  ConsumerState<_ApiFootballSyncSection> createState() =>
+      _ApiFootballSyncSectionState();
+}
+
+class _ApiFootballSyncSectionState extends ConsumerState<_ApiFootballSyncSection> {
+  bool _isSyncing = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = context.strings;
+    final syncState = ref.watch(apiFootballSyncStateProvider);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              strings.apiFootballSync,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            Text(strings.apiFootballSyncBody),
+            const SizedBox(height: 16),
+            syncState.when(
+              data: (state) => _SyncStateDetails(state: state),
+              loading: () => const LinearProgressIndicator(),
+              error: (error, _) => Text('Sync state error: $error'),
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: _isSyncing ? null : _syncNow,
+              icon:
+                  _isSyncing
+                      ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                      : const Icon(Icons.sync),
+              label: Text(strings.syncNow),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _syncNow() async {
+    final confirmed = await _confirmAdminChange(
+      context,
+      title: 'Run score sync now?',
+      body:
+          'This pulls live scores from football-data.org for games without manual admin overrides. Admin-entered results always win. You must be signed in with rgw1985@hotmail.com.',
+      requireNote: false,
+    );
+    if (!mounted || confirmed == null) return;
+    setState(() => _isSyncing = true);
+    try {
+      final summary = await ref
+          .read(appRepositoryProvider)
+          .triggerApiFootballSync();
+      _showSnack(
+        'Sync finished: ${summary.fixturesUpdated} updated of '
+        '${summary.apiFixturesReceived} API games '
+        '(${summary.skippedUnchanged} unchanged, '
+        '${summary.skippedUnmatched} unmatched, '
+        '${summary.skippedAdmin} admin). '
+        'Local fixtures: ${summary.localFixturesLoaded}, '
+        'countries mapped: ${summary.countriesWithApiId}.',
+      );
+    } catch (error) {
+      _showSnack('Sync failed: $error');
+    } finally {
+      if (mounted) setState(() => _isSyncing = false);
+    }
+  }
+
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _SyncStateDetails extends StatelessWidget {
+  const _SyncStateDetails({required this.state});
+
+  final ApiFootballSyncState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final lastSync = state.lastSyncAt;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          lastSync == null
+              ? 'No API sync has run yet.'
+              : 'Last sync: ${DateFormat.yMMMd().add_jm().format(lastSync.toLocal())}'
+                  '${state.source == null ? '' : ' (${state.source})'}',
+        ),
+        if (state.lastError != null && state.lastError!.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Last error: ${state.lastError}',
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        ],
+        if (lastSync != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            'API returned ${state.apiFixturesReceived} games for '
+            '${state.localFixturesLoaded} local fixtures. '
+            'Updated ${state.fixturesUpdated}, '
+            '${state.skippedUnchanged} unchanged, '
+            '${state.skippedUnmatched} unmatched, '
+            '${state.skippedAdmin} admin overrides. '
+            'Countries mapped: ${state.countriesWithApiId}'
+            '${state.countriesEnrichedFromApi > 0 ? ' (+${state.countriesEnrichedFromApi} from API names)' : ''}.',
+          ),
+        ],
+      ],
+    );
   }
 }
 

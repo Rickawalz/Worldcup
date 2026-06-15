@@ -4,133 +4,56 @@ import {getMessaging} from "firebase-admin/messaging";
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {onSchedule} from "firebase-functions/v2/scheduler";
 import {onDocumentWritten} from "firebase-functions/v2/firestore";
-import {defineSecret} from "firebase-functions/params";
+import {defineSecret, defineString} from "firebase-functions/params";
+import {calculateStandings, FixtureRecord} from "./standings-calculator";
+import {
+  runWorldCupSync,
+  shouldRunScheduledMatchWindowSync,
+  SyncSource,
+  SyncSummary,
+  writeSyncState,
+} from "./sync-world-cup";
 
 initializeApp();
 
 const db = getFirestore();
-const apiFootballKey = defineSecret("API_FOOTBALL_KEY");
+const footballDataToken = defineSecret("FOOTBALL_DATA_TOKEN");
+const adminEmail = defineString("ADMIN_EMAIL", {
+  default: "rgw1985@hotmail.com",
+});
+const OFFICIAL_RESULTS_PATH = "globalContest/current/officialResults/current";
 
-type ApiFootballFixture = {
-  fixture?: {
-    id?: number;
-    date?: string;
-    status?: {short?: string};
-  };
-  league?: {round?: string};
-  teams?: {
-    home?: {id?: number; winner?: boolean};
-    away?: {id?: number; winner?: boolean};
-  };
-  goals?: {home?: number; away?: number};
-};
-
-type ApiFootballStanding = {
-  rank?: number;
-  group?: string;
-  team?: {id?: number; name?: string; logo?: string};
-  points?: number;
-  goalsDiff?: number;
-  all?: {
-    played?: number;
-    win?: number;
-    draw?: number;
-    lose?: number;
-    goals?: {for?: number; against?: number};
-  };
-};
-
+// Poll every 15 minutes, but only call football-data.org while a game is in its
+// kickoff window so scores update soon after full time without burning the
+// free tier on idle days.
 export const syncWorldCupData = onSchedule(
   {
-    schedule: "every 30 minutes",
-    secrets: [apiFootballKey],
+    schedule: "every 15 minutes",
+    secrets: [footballDataToken],
     timeoutSeconds: 120,
   },
   async () => {
-    const key = apiFootballKey.value();
-    if (!key) {
-      throw new Error("API_FOOTBALL_KEY is not configured.");
+    const inMatchWindow = await shouldRunScheduledMatchWindowSync(db);
+    if (!inMatchWindow) {
+      return;
     }
+    await executeSync("scheduled");
+  },
+);
 
-    const [fixtures, standings] = await Promise.all([
-      fetchApiFootball<{response: ApiFootballFixture[]}>(
-        "fixtures?league=1&season=2026",
-        key,
-      ),
-      fetchApiFootball<{response: Array<{league?: {standings?: ApiFootballStanding[][]}}>}>(
-        "standings?league=1&season=2026",
-        key,
-      ),
-    ]);
-
-    const batch = db.batch();
-    for (const item of fixtures.response ?? []) {
-      const externalId = String(item.fixture?.id ?? "");
-      if (!externalId) {
-        continue;
-      }
-      const homeApiId = item.teams?.home?.id;
-      const awayApiId = item.teams?.away?.id;
-      const winnerApiId = item.teams?.home?.winner
-        ? homeApiId
-        : item.teams?.away?.winner
-          ? awayApiId
-          : null;
-
-      batch.set(
-        db.collection("fixtures").doc(externalId),
-        {
-          externalId,
-          roundLabel: item.league?.round ?? "",
-          stage: stageFromRound(item.league?.round ?? ""),
-          kickoff: item.fixture?.date ?? null,
-          status: statusFromApi(item.fixture?.status?.short ?? "NS"),
-          homeApiFootballTeamId: homeApiId ?? null,
-          awayApiFootballTeamId: awayApiId ?? null,
-          homeScore: item.goals?.home ?? null,
-          awayScore: item.goals?.away ?? null,
-          winnerApiFootballTeamId: winnerApiId,
-          syncedAt: FieldValue.serverTimestamp(),
-        },
-        {merge: true},
-      );
-    }
-
-    const groups = standings.response?.[0]?.league?.standings ?? [];
-    for (const groupRows of groups) {
-      const groupId = (groupRows[0]?.group ?? "unknown")
-        .replace(/^Group\s+/i, "")
-        .trim();
-      batch.set(
-        db.collection("standings").doc(groupId),
-        {
-          groupId,
-          rows: groupRows.map((row) => ({
-            rank: row.rank ?? null,
-            apiFootballTeamId: row.team?.id ?? null,
-            teamName: row.team?.name ?? "",
-            flagUrl: row.team?.logo ?? "",
-            points: row.points ?? 0,
-            goalDifference: row.goalsDiff ?? 0,
-            played: row.all?.played ?? 0,
-            won: row.all?.win ?? 0,
-            drawn: row.all?.draw ?? 0,
-            lost: row.all?.lose ?? 0,
-            goalsFor: row.all?.goals?.for ?? 0,
-            goalsAgainst: row.all?.goals?.against ?? 0,
-          })),
-          syncedAt: FieldValue.serverTimestamp(),
-        },
-        {merge: true},
-      );
-    }
-
-    await batch.commit();
+export const syncWorldCupDataNow = onCall(
+  {
+    secrets: [footballDataToken],
+    timeoutSeconds: 120,
+  },
+  async (request) => {
+    await assertAdmin(request.auth);
+    return executeSync("manual");
   },
 );
 
 export const submitAdminOverride = onCall(async (request) => {
-  assertAdmin(request.auth?.token);
+  await assertAdmin(request.auth);
   const {targetType, targetId, values} = request.data as {
     targetType?: string;
     targetId?: string;
@@ -151,7 +74,7 @@ export const submitAdminOverride = onCall(async (request) => {
 });
 
 export const recalculateLeaderboard = onCall(async (request) => {
-  assertAdmin(request.auth?.token);
+  await assertAdmin(request.auth);
   await rebuildLeaderboard();
 });
 
@@ -162,6 +85,16 @@ export const scoreBracketOnResult = onDocumentWritten(
     if (!after || after.status !== "finished") {
       return;
     }
+
+    if (after.stage === "group") {
+      await recalculateStandingsFromFixtures();
+    } else if (after.winnerCountryId) {
+      await updateKnockoutOfficialResults(
+        event.params.fixtureId,
+        after as Record<string, unknown>,
+      );
+    }
+
     await rebuildLeaderboard();
   },
 );
@@ -194,14 +127,146 @@ export const sendLockReminders = onSchedule("every 24 hours", async () => {
   });
 });
 
-async function fetchApiFootball<T>(path: string, key: string): Promise<T> {
-  const response = await fetch(`https://v3.football.api-sports.io/${path}`, {
-    headers: {"x-apisports-key": key},
-  });
-  if (!response.ok) {
-    throw new Error(`API-Football ${path} failed: ${response.status}`);
+async function executeSync(source: SyncSource): Promise<SyncSummary> {
+  const token = footballDataToken.value();
+  if (!token) {
+    throw new Error("FOOTBALL_DATA_TOKEN is not configured.");
   }
-  return (await response.json()) as T;
+
+  try {
+    const summary = await runWorldCupSync(db, token, source);
+    await writeSyncState(db, summary, null);
+    return summary;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await writeSyncState(
+      db,
+      {
+        fixturesUpdated: 0,
+        skippedAdmin: 0,
+        skippedUnmatched: 0,
+        skippedUnchanged: 0,
+        knockoutResultsUpdated: 0,
+        apiFixturesReceived: 0,
+        localFixturesLoaded: 0,
+        countriesWithApiId: 0,
+        countriesEnrichedFromApi: 0,
+        source,
+      },
+      message,
+    );
+    throw error;
+  }
+}
+
+async function recalculateStandingsFromFixtures(): Promise<void> {
+  const [fixturesSnap, standingsSnap] = await Promise.all([
+    db.collection("fixtures").get(),
+    db.collection("standings").get(),
+  ]);
+
+  const fixtures: FixtureRecord[] = fixturesSnap.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  })) as FixtureRecord[];
+
+  const existingStandings = standingsSnap.docs.map((doc) => ({
+    groupId: doc.id,
+    overrideOrderCountryIds: doc.get("overrideOrderCountryIds") as
+      | string[]
+      | undefined,
+  }));
+
+  const now = new Date().toISOString();
+  const calculated = calculateStandings(
+    fixtures,
+    existingStandings,
+    now,
+    "score-bracket-trigger",
+  );
+
+  const batch = db.batch();
+  for (const standing of calculated) {
+    batch.set(db.collection("standings").doc(standing.groupId), {
+      groupId: standing.groupId,
+      rows: standing.rows,
+      overrideOrderCountryIds: standing.overrideOrderCountryIds,
+      updatedAt: standing.updatedAt,
+      updatedBy: standing.updatedBy,
+    });
+  }
+  await batch.commit();
+}
+
+async function updateKnockoutOfficialResults(
+  fixtureId: string,
+  fixture: Record<string, unknown>,
+): Promise<void> {
+  const winnerCountryId = fixture.winnerCountryId as string | undefined;
+  if (!winnerCountryId) {
+    return;
+  }
+
+  const officialRef = db.doc(OFFICIAL_RESULTS_PATH);
+  const officialSnap = await officialRef.get();
+  const official = officialSnap.data() ?? {};
+  const winners = {
+    ...(official.knockoutWinnersBySlot as Record<string, string> | undefined),
+    [fixtureId]: winnerCountryId,
+  };
+
+  const payload: Record<string, unknown> = {
+    knockoutWinnersBySlot: winners,
+    updatedAt: new Date().toISOString(),
+    updatedBy: fixture.updatedBy ?? "score-bracket-trigger",
+  };
+
+  if (fixture.stage === "finalMatch") {
+    payload.finalChampionScore = winnerScoreFromFixture(fixture);
+    payload.finalRunnerUpScore = runnerUpScoreFromFixture(fixture);
+  }
+
+  await officialRef.set(payload, {merge: true});
+}
+
+function winnerScoreFromFixture(fixture: Record<string, unknown>): number | null {
+  const homeScore = fixture.homeScore as number | null | undefined;
+  const awayScore = fixture.awayScore as number | null | undefined;
+  const winnerCountryId = fixture.winnerCountryId as string | undefined;
+  const homeCountryId = fixture.homeCountryId as string | undefined;
+  const awayCountryId = fixture.awayCountryId as string | undefined;
+  if (
+    homeScore == null ||
+    awayScore == null ||
+    !winnerCountryId ||
+    !homeCountryId ||
+    !awayCountryId
+  ) {
+    return null;
+  }
+  if (winnerCountryId === homeCountryId) return homeScore;
+  if (winnerCountryId === awayCountryId) return awayScore;
+  return null;
+}
+
+function runnerUpScoreFromFixture(fixture: Record<string, unknown>): number | null {
+  const homeScore = fixture.homeScore as number | null | undefined;
+  const awayScore = fixture.awayScore as number | null | undefined;
+  const winnerCountryId = fixture.winnerCountryId as string | undefined;
+  const homeCountryId = fixture.homeCountryId as string | undefined;
+  const awayCountryId = fixture.awayCountryId as string | undefined;
+  if (
+    homeScore == null ||
+    awayScore == null ||
+    !winnerCountryId ||
+    !homeCountryId ||
+    !awayCountryId
+  ) {
+    return null;
+  }
+  if (winnerCountryId === homeCountryId) return awayScore;
+  if (winnerCountryId === awayCountryId) return homeScore;
+  return null;
 }
 
 async function rebuildLeaderboard(): Promise<void> {
@@ -233,10 +298,40 @@ async function rebuildLeaderboard(): Promise<void> {
   await batch.commit();
 }
 
-function assertAdmin(token: Record<string, unknown> | undefined): void {
-  if (token?.admin !== true) {
-    throw new HttpsError("permission-denied", "Admin custom claim required.");
+async function assertAdmin(
+  auth: {uid?: string; token?: Record<string, unknown>} | undefined,
+): Promise<void> {
+  if (!auth?.uid) {
+    throw new HttpsError("unauthenticated", "Sign in before running admin actions.");
   }
+
+  if (auth.token?.admin === true) {
+    return;
+  }
+
+  const configuredAdmin = adminEmail.value().trim().toLowerCase();
+  const tokenEmail =
+    typeof auth.token?.email === "string" ? auth.token.email.trim().toLowerCase() : "";
+  if (tokenEmail.length > 0 && tokenEmail === configuredAdmin) {
+    return;
+  }
+
+  const privateAccount = await db.doc(`users/${auth.uid}/private/account`).get();
+  const storedEmail = (
+    (privateAccount.get("authEmail") as string | undefined) ??
+    (privateAccount.get("email") as string | undefined) ??
+    ""
+  )
+    .trim()
+    .toLowerCase();
+  if (storedEmail.length > 0 && storedEmail === configuredAdmin) {
+    return;
+  }
+
+  throw new HttpsError(
+    "permission-denied",
+    `Admin access required. Sign in with ${adminEmail.value()}.`,
+  );
 }
 
 function targetTypeToCollection(targetType: string): string {
@@ -252,21 +347,4 @@ function targetTypeToCollection(targetType: string): string {
     default:
       throw new HttpsError("invalid-argument", `Unsupported targetType: ${targetType}`);
   }
-}
-
-function stageFromRound(round: string): string {
-  const normalized = round.toLowerCase();
-  if (normalized.includes("round of 32")) return "roundOf32";
-  if (normalized.includes("round of 16")) return "roundOf16";
-  if (normalized.includes("quarter")) return "quarterfinal";
-  if (normalized.includes("semi")) return "semifinal";
-  if (normalized.includes("final")) return "finalMatch";
-  return "group";
-}
-
-function statusFromApi(status: string): string {
-  if (["1H", "HT", "2H", "ET", "P", "BT"].includes(status)) return "live";
-  if (["FT", "AET", "PEN"].includes(status)) return "finished";
-  if (["PST", "CANC", "ABD"].includes(status)) return "postponed";
-  return "scheduled";
 }

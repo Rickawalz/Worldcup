@@ -54,6 +54,8 @@ class StandingsScreen extends ConsumerWidget {
                         ),
                       ],
                       children: [
+                        const _StandingsLegend(),
+                        const SizedBox(height: 16),
                         _GroupStandingsGrid(
                           standings: standingList,
                           countries: countryList,
@@ -103,6 +105,192 @@ class StandingsScreen extends ConsumerWidget {
           ),
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) => Center(child: Text('Country error: $error')),
+    );
+  }
+}
+
+class _StandingsLegend extends StatelessWidget {
+  const _StandingsLegend();
+
+  static bool _isMobile(BuildContext context) =>
+      MediaQuery.sizeOf(context).width < 640;
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = context.strings;
+    final theme = Theme.of(context);
+    final content = _StandingsLegendContent(strings: strings);
+
+    if (_isMobile(context)) {
+      return Card(
+        clipBehavior: Clip.antiAlias,
+        child: Theme(
+          data: theme.copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+            childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            title: Text(
+              strings.standingsLegendTitle,
+              style: theme.textTheme.titleSmall,
+            ),
+            initiallyExpanded: false,
+            children: [content],
+          ),
+        ),
+      );
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              strings.standingsLegendTitle,
+              style: theme.textTheme.titleMedium,
+            ),
+            const SizedBox(height: 10),
+            content,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StandingsLegendContent extends StatelessWidget {
+  const _StandingsLegendContent({required this.strings});
+
+  final AppStrings strings;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isMobile = _StandingsLegend._isMobile(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            if (!isMobile) {
+              return Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  for (final entry in strings.standingsLegendEntries)
+                    _StandingsLegendItem(entry: entry),
+                ],
+              );
+            }
+            final itemWidth = (constraints.maxWidth - 6) / 2;
+            return Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final entry in strings.standingsLegendEntries)
+                  SizedBox(
+                    width: itemWidth,
+                    child: _StandingsLegendItem(entry: entry, compact: true),
+                  ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 8),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _LegendAbbrChip(label: 'Form', compact: isMobile),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                strings.standingsLegendForm,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _StandingsLegendItem extends StatelessWidget {
+  const _StandingsLegendItem({required this.entry, this.compact = false});
+
+  final StandingsLegendEntry entry;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (compact) {
+      return Row(
+        children: [
+          _LegendAbbrChip(label: entry.abbr, compact: true),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              entry.label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 140, maxWidth: 220),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _LegendAbbrChip(label: entry.abbr),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              entry.label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LegendAbbrChip extends StatelessWidget {
+  const _LegendAbbrChip({required this.label, this.compact = false});
+
+  final String label;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 6 : 8,
+        vertical: compact ? 2 : 4,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0x44142533),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0x33FFFFFF)),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          color: DashboardColors.gold,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 }
@@ -158,12 +346,12 @@ class _GroupStandingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isWide = MediaQuery.sizeOf(context).width >= 700;
     final countryById = {for (final country in countries) country.id: country};
+    final isMobile = MediaQuery.sizeOf(context).width < 640;
     return Card(
       clipBehavior: Clip.antiAlias,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isMobile ? 12 : 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -171,24 +359,26 @@ class _GroupStandingCard extends StatelessWidget {
               context.strings.group(standing.groupId),
               style: Theme.of(context).textTheme.titleLarge,
             ),
-            const SizedBox(height: 12),
-            isWide
-                ? _WideStandingTable(
-                  standing: standing,
-                  countryById: countryById,
-                )
-                : _MobileStandingTable(
-                  standing: standing,
-                  countryById: countryById,
-                ),
-            const SizedBox(height: 16),
-            Text('Games', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            if (fixtures.isEmpty)
-              const Text('Group games will appear here when seeded.')
-            else
-              for (final fixture in fixtures)
-                _FixtureTile(fixture: fixture, countries: countries),
+            _GroupStandingTable(
+              standing: standing,
+              countryById: countryById,
+            ),
+            if (isMobile)
+              _MobileGroupGamesSection(
+                fixtures: fixtures,
+                countries: countries,
+              )
+            else ...[
+              const SizedBox(height: 16),
+              Text('Games', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              if (fixtures.isEmpty)
+                const Text('Group games will appear here when seeded.')
+              else
+                for (final fixture in fixtures)
+                  _FixtureTile(fixture: fixture, countries: countries),
+            ],
           ],
         ),
       ),
@@ -196,8 +386,69 @@ class _GroupStandingCard extends StatelessWidget {
   }
 }
 
-class _WideStandingTable extends StatelessWidget {
-  const _WideStandingTable({required this.standing, required this.countryById});
+class _MobileGroupGamesSection extends StatelessWidget {
+  const _MobileGroupGamesSection({
+    required this.fixtures,
+    required this.countries,
+  });
+
+  final List<Fixture> fixtures;
+  final List<Country> countries;
+
+  @override
+  Widget build(BuildContext context) {
+    if (fixtures.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: EdgeInsets.zero,
+        title: Text(
+          context.strings.showGroupGames(fixtures.length),
+          style: Theme.of(context).textTheme.labelLarge,
+        ),
+        initiallyExpanded: false,
+        children: [
+          for (final fixture in fixtures)
+            _FixtureTile(fixture: fixture, countries: countries),
+        ],
+      ),
+    );
+  }
+}
+
+class _GroupStandingTable extends StatelessWidget {
+  const _GroupStandingTable({
+    required this.standing,
+    required this.countryById,
+  });
+
+  final GroupStanding standing;
+  final Map<String, Country> countryById;
+
+  @override
+  Widget build(BuildContext context) {
+    final useMobileLayout = MediaQuery.sizeOf(context).width < 640;
+    if (useMobileLayout) {
+      return _MobileStandingList(
+        standing: standing,
+        countryById: countryById,
+      );
+    }
+    return _DesktopStandingTable(
+      standing: standing,
+      countryById: countryById,
+    );
+  }
+}
+
+class _DesktopStandingTable extends StatelessWidget {
+  const _DesktopStandingTable({
+    required this.standing,
+    required this.countryById,
+  });
 
   final GroupStanding standing;
   final Map<String, Country> countryById;
@@ -210,6 +461,7 @@ class _WideStandingTable extends StatelessWidget {
         headingRowHeight: 36,
         dataRowMinHeight: 44,
         dataRowMaxHeight: 52,
+        columnSpacing: 16,
         columns: const [
           DataColumn(label: Text('Pos')),
           DataColumn(label: Text('Team')),
@@ -220,6 +472,7 @@ class _WideStandingTable extends StatelessWidget {
           DataColumn(label: Text('GF')),
           DataColumn(label: Text('GA')),
           DataColumn(label: Text('GD')),
+          DataColumn(label: Text('Form')),
           DataColumn(label: Text('Pts')),
         ],
         rows: [
@@ -235,7 +488,20 @@ class _WideStandingTable extends StatelessWidget {
                 DataCell(Text('${row.goalsFor}')),
                 DataCell(Text('${row.goalsAgainst}')),
                 DataCell(Text('${row.goalDifference}')),
-                DataCell(Text('${row.points}')),
+                DataCell(
+                  Text(
+                    row.form.isEmpty ? '—' : row.form,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ),
+                DataCell(
+                  Text(
+                    '${row.points}',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
               ],
             ),
         ],
@@ -244,8 +510,8 @@ class _WideStandingTable extends StatelessWidget {
   }
 }
 
-class _MobileStandingTable extends StatelessWidget {
-  const _MobileStandingTable({
+class _MobileStandingList extends StatelessWidget {
+  const _MobileStandingList({
     required this.standing,
     required this.countryById,
   });
@@ -257,19 +523,258 @@ class _MobileStandingTable extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        for (final row in standing.rows)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: CircleAvatar(child: Text('${row.rank}')),
-            title: _TeamCell(country: countryById[row.countryId]),
-            subtitle: Text('P ${row.played} | GD ${row.goalDifference}'),
-            trailing: Text(
-              '${row.points} pts',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+        for (var index = 0; index < standing.rows.length; index++) ...[
+          if (index > 0) const Divider(height: 1),
+          _MobileStandingRow(
+            row: standing.rows[index],
+            country: countryById[standing.rows[index].countryId],
+            highlight: standing.rows[index].rank <= 2,
           ),
+        ],
       ],
     );
+  }
+}
+
+class _MobileStatsRow extends StatelessWidget {
+  const _MobileStatsRow({required this.cells, this.header = false});
+
+  final List<String> cells;
+  final bool header;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final style =
+        header
+            ? theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            )
+            : theme.textTheme.labelMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            );
+
+    return Row(
+      children: [
+        for (var index = 0; index < cells.length; index++) ...[
+          if (index > 0)
+            Text(
+              '·',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          Expanded(
+            child: Text(
+              cells[index],
+              textAlign: TextAlign.center,
+              style: style,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _MobileStandingRow extends StatelessWidget {
+  const _MobileStandingRow({
+    required this.row,
+    required this.country,
+    required this.highlight,
+  });
+
+  final StandingRow row;
+  final Country? country;
+  final bool highlight;
+
+  static const _statHeaders = ['P', 'W', 'D', 'L', 'GF', 'GA', 'GD'];
+
+  static List<String> _valueCells(StandingRow row) {
+    final gdText =
+        row.goalDifference > 0
+            ? '+${row.goalDifference}'
+            : '${row.goalDifference}';
+    return [
+      '${row.played}',
+      '${row.won}',
+      '${row.drawn}',
+      '${row.lost}',
+      '${row.goalsFor}',
+      '${row.goalsAgainst}',
+      gdText,
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      decoration:
+          highlight
+              ? BoxDecoration(
+                color: DashboardColors.emerald.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+              )
+              : null,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _RankBadge(rank: row.rank, highlight: highlight, compact: true),
+              const SizedBox(width: 8),
+              Expanded(
+                child:
+                    country == null
+                        ? Text('TBD', style: theme.textTheme.bodyLarge)
+                        : CountryBadge(country: country!, compact: true),
+              ),
+              Text(
+                '${row.points} pts',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: DashboardColors.gold,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.only(left: 34),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _MobileStatsRow(cells: _statHeaders, header: true),
+                const SizedBox(height: 2),
+                _MobileStatsRow(cells: _valueCells(row)),
+                if (row.form.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Text(
+                        'Form',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      _FormBadges(form: row.form, compact: true),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RankBadge extends StatelessWidget {
+  const _RankBadge({
+    required this.rank,
+    required this.highlight,
+    this.compact = false,
+  });
+
+  final int rank;
+  final bool highlight;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final size = compact ? 26.0 : 32.0;
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color:
+            highlight
+                ? DashboardColors.emerald.withValues(alpha: 0.25)
+                : const Color(0x33142533),
+        borderRadius: BorderRadius.circular(compact ? 8 : 10),
+        border: Border.all(
+          color:
+              highlight
+                  ? DashboardColors.emerald.withValues(alpha: 0.6)
+                  : const Color(0x33FFFFFF),
+        ),
+      ),
+      child: Text(
+        '$rank',
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _FormBadges extends StatelessWidget {
+  const _FormBadges({required this.form, this.compact = false});
+
+  final String form;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final results = form.split(',').where((part) => part.isNotEmpty).toList();
+    return Wrap(
+      spacing: compact ? 3 : 6,
+      children: [
+        for (final result in results)
+          _FormBadge(result: result.trim(), compact: compact),
+      ],
+    );
+  }
+}
+
+class _FormBadge extends StatelessWidget {
+  const _FormBadge({required this.result, this.compact = false});
+
+  final String result;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = switch (result) {
+      'W' => DashboardColors.emerald,
+      'D' => DashboardColors.sky,
+      'L' => const Color(0xFFE57373),
+      _ => themeFallback(context),
+    };
+    final size = compact ? 20.0 : 28.0;
+
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.22),
+        borderRadius: BorderRadius.circular(compact ? 5 : 8),
+        border: Border.all(color: color.withValues(alpha: 0.65)),
+      ),
+      child: Text(
+        result,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w800,
+          fontSize: compact ? 10 : null,
+        ),
+      ),
+    );
+  }
+
+  Color themeFallback(BuildContext context) {
+    return Theme.of(context).colorScheme.onSurfaceVariant;
   }
 }
 
@@ -830,24 +1335,31 @@ class _FixtureTile extends StatelessWidget {
                 runSpacing: 6,
                 children: [
                   for (final item in metadata)
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          item == fixture.venueLabel
-                              ? Icons.location_on_outlined
-                              : item.startsWith('Updated')
-                              ? Icons.update
-                              : Icons.schedule,
-                          size: 16,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          item,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 320),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            item == fixture.venueLabel
+                                ? Icons.location_on_outlined
+                                : item.startsWith('Updated')
+                                ? Icons.update
+                                : Icons.schedule,
+                            size: 16,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              item,
+                              style: Theme.of(context).textTheme.bodySmall,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                 ],
               ),
