@@ -175,13 +175,15 @@ class _SignedInHome extends ConsumerWidget {
         ),
         if (config.valueOrNull != null)
           DashboardStat(
-            label: config.valueOrNull!.isLocked ? 'locked' : 'picks lock',
+            label: 'submissions',
             value:
-                config.valueOrNull!.isLocked
-                    ? 'Closed'
-                    : DateFormat.MMMd().format(
+                config.valueOrNull!.areSubmissionsOpen
+                    ? DateFormat.MMMd().format(
                       config.valueOrNull!.lockAt.toLocal(),
-                    ),
+                    )
+                    : (!config.valueOrNull!.isAcceptingSubmissions
+                        ? 'Closed'
+                        : 'Locked'),
             icon: Icons.lock_clock_outlined,
             color: DashboardColors.sky,
           ),
@@ -199,14 +201,21 @@ class _SignedInHome extends ConsumerWidget {
           data:
               (value) => _ActionCard(
                 title:
-                    value.isLocked
-                        ? strings.bracketLocked
-                        : strings.bracketLockDeadline,
-                body: strings.picksLockAt(
-                  DateFormat.yMMMd(
-                    Localizations.localeOf(context).toLanguageTag(),
-                  ).add_jm().format(value.lockAt.toLocal()),
-                ),
+                    value.areSubmissionsOpen
+                        ? strings.bracketLockDeadline
+                        : (!value.isAcceptingSubmissions
+                            ? strings.submissionsClosedByAdmin
+                            : strings.bracketLocked),
+                body:
+                    value.areSubmissionsOpen
+                        ? strings.picksLockAt(
+                          DateFormat.yMMMd(
+                            Localizations.localeOf(context).toLanguageTag(),
+                          ).add_jm().format(value.lockAt.toLocal()),
+                        )
+                        : (!value.isAcceptingSubmissions
+                            ? strings.adminSubmissionsClosedByAdminHint
+                            : strings.bracketReadOnly),
                 actionLabel: strings.openBracket,
                 onPressed: () => context.go('/bracket'),
                 icon: Icons.lock_clock_outlined,

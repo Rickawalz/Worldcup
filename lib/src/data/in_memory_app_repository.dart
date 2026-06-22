@@ -305,7 +305,7 @@ class InMemoryAppRepository implements AppRepository {
 
   @override
   Future<void> saveBracket(Bracket bracket) async {
-    if (!_config.isAcceptingSubmissions || _config.isLocked) {
+    if (!_config.areSubmissionsOpen) {
       throw StateError('This bracket is locked.');
     }
     _bracket = bracket.copyWith(updatedAt: DateTime.now());

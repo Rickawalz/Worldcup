@@ -223,6 +223,7 @@ class DashboardHeader extends StatelessWidget {
     required this.subtitle,
     required this.icon,
     this.stats = const [],
+    this.compact = false,
     super.key,
   });
 
@@ -230,13 +231,14 @@ class DashboardHeader extends StatelessWidget {
   final String subtitle;
   final IconData icon;
   final List<DashboardStat> stats;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(compact ? 20 : 30),
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -246,53 +248,87 @@ class DashboardHeader extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          Positioned(
-            right: -24,
-            top: -24,
-            child: Icon(
-              Icons.sports_soccer,
-              color: Colors.white.withValues(alpha: 0.08),
-              size: 150,
+          if (!compact)
+            Positioned(
+              right: -24,
+              top: -24,
+              child: Icon(
+                Icons.sports_soccer,
+                color: Colors.white.withValues(alpha: 0.08),
+                size: 150,
+              ),
             ),
-          ),
           Padding(
-            padding: const EdgeInsets.all(22),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  radius: 25,
-                  backgroundColor: DashboardColors.gold.withValues(alpha: 0.2),
-                  foregroundColor: DashboardColors.gold,
-                  child: Icon(icon),
-                ),
-                const SizedBox(height: 14),
-                Text(title, style: theme.textTheme.headlineMedium),
-                const SizedBox(height: 8),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 760),
-                  child: Text(
-                    subtitle,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-                if (stats.isNotEmpty) ...[
-                  const SizedBox(height: 18),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: [
-                      for (final stat in stats) DashboardStatChip(stat: stat),
-                    ],
-                  ),
-                ],
-              ],
-            ),
+            padding: EdgeInsets.all(compact ? 12 : 22),
+            child:
+                compact
+                    ? _buildCompactContent(theme)
+                    : _buildFullContent(theme),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildCompactContent(ThemeData theme) {
+    return Row(
+      children: [
+        CircleAvatar(
+          radius: 18,
+          backgroundColor: DashboardColors.gold.withValues(alpha: 0.2),
+          foregroundColor: DashboardColors.gold,
+          child: Icon(icon, size: 20),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            title,
+            style: theme.textTheme.titleLarge,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        if (stats.isNotEmpty) ...[
+          const SizedBox(width: 8),
+          for (final stat in stats) DashboardStatChip(stat: stat, compact: true),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildFullContent(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CircleAvatar(
+          radius: 25,
+          backgroundColor: DashboardColors.gold.withValues(alpha: 0.2),
+          foregroundColor: DashboardColors.gold,
+          child: Icon(icon),
+        ),
+        const SizedBox(height: 14),
+        Text(title, style: theme.textTheme.headlineMedium),
+        const SizedBox(height: 8),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 760),
+          child: Text(
+            subtitle,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+        if (stats.isNotEmpty) ...[
+          const SizedBox(height: 18),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              for (final stat in stats) DashboardStatChip(stat: stat),
+            ],
+          ),
+        ],
+      ],
     );
   }
 }
@@ -328,14 +364,18 @@ class DashboardStat {
 }
 
 class DashboardStatChip extends StatelessWidget {
-  const DashboardStatChip({required this.stat, super.key});
+  const DashboardStatChip({required this.stat, this.compact = false, super.key});
 
   final DashboardStat stat;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 10 : 14,
+        vertical: compact ? 6 : 10,
+      ),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(18),
@@ -345,15 +385,19 @@ class DashboardStatChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (stat.icon != null) ...[
-            Icon(stat.icon, size: 18, color: stat.color),
-            const SizedBox(width: 8),
+            Icon(stat.icon, size: compact ? 14 : 18, color: stat.color),
+            SizedBox(width: compact ? 4 : 8),
           ],
           Text(
             stat.value,
-            style: TextStyle(color: stat.color, fontWeight: FontWeight.w800),
+            style: TextStyle(
+              color: stat.color,
+              fontWeight: FontWeight.w800,
+              fontSize: compact ? 12 : null,
+            ),
           ),
-          const SizedBox(width: 6),
-          Text(stat.label),
+          SizedBox(width: compact ? 4 : 6),
+          Text(stat.label, style: TextStyle(fontSize: compact ? 12 : null)),
         ],
       ),
     );

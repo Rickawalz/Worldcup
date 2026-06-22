@@ -267,11 +267,16 @@ export function scoreBrackets({ brackets, usersById, officialResults, pointsPerC
   const entries = [];
   const updatedBrackets = [];
   for (const [userId, bracket] of brackets) {
-    const groupAdvancers = predictedAdvancers(bracket);
-    const groupScore = groupAdvancers.filter((countryId) => officialResults.advancingCountryIds.includes(countryId)).length * pointsPerCorrectPick;
-    const knockoutScore = (bracket.knockoutPicks ?? []).filter(
-      (pick) => officialResults.knockoutWinnersBySlot?.[pick.slotId] === pick.winnerCountryId,
-    ).length * pointsPerCorrectPick;
+    const groupScore = scoreGroupPlacements(
+      bracket.groupPicks ?? [],
+      officialResults.groupPlacements,
+    );
+    const knockoutScore = (bracket.knockoutPicks ?? []).reduce((score, pick) => {
+      if (officialResults.knockoutWinnersBySlot?.[pick.slotId] !== pick.winnerCountryId) {
+        return score;
+      }
+      return score + knockoutPointsForStage(pick.stage);
+    }, 0);
     const tiebreakerDistance =
       officialResults.finalChampionScore === null ||
       officialResults.finalChampionScore === undefined ||
@@ -310,6 +315,76 @@ export function scoreBrackets({ brackets, usersById, officialResults, pointsPerC
     entry.rank = index + 1;
   });
   return { entries, updatedBrackets };
+}
+
+const GROUP_TOP_THREE_POINTS = 1;
+const GROUP_EXACT_PLACEMENT_BONUS = 2;
+
+const KNOCKOUT_POINTS_BY_STAGE = {
+  roundOf32: 1,
+  roundOf16: 2,
+  quarterfinal: 4,
+  semifinal: 8,
+  finalMatch: 16,
+};
+
+export function knockoutPointsForStage(stage) {
+  return KNOCKOUT_POINTS_BY_STAGE[stage] ?? 0;
+}
+
+export function scoreGroupPlacements(predictedPicks, actualPlacements) {
+  if (!actualPlacements?.groupPicks?.length) {
+    return 0;
+  }
+
+  const actualByGroup = new Map(
+    actualPlacements.groupPicks.map((pick) => [pick.groupId, pick]),
+  );
+
+  let score = 0;
+  for (const predicted of predictedPicks) {
+    const actual = actualByGroup.get(predicted.groupId);
+    if (!actual) {
+      continue;
+    }
+    score += scorePredictedSlot(predicted.firstCountryId, 1, actual);
+    score += scorePredictedSlot(predicted.secondCountryId, 2, actual);
+    score += scorePredictedSlot(predicted.thirdCountryId ?? '', 3, actual);
+  }
+  return score;
+}
+
+function scorePredictedSlot(predictedCountryId, predictedRank, actual) {
+  if (!predictedCountryId) {
+    return 0;
+  }
+  const topThree = topThreeCountryIds(actual);
+  if (!topThree.has(predictedCountryId)) {
+    return 0;
+  }
+  if (predictedCountryId === countryIdAtRank(actual, predictedRank)) {
+    return GROUP_TOP_THREE_POINTS + GROUP_EXACT_PLACEMENT_BONUS;
+  }
+  return GROUP_TOP_THREE_POINTS;
+}
+
+function topThreeCountryIds(pick) {
+  return new Set(
+    [pick.firstCountryId, pick.secondCountryId, pick.thirdCountryId].filter(Boolean),
+  );
+}
+
+function countryIdAtRank(pick, rank) {
+  switch (rank) {
+    case 1:
+      return pick.firstCountryId;
+    case 2:
+      return pick.secondCountryId;
+    case 3:
+      return pick.thirdCountryId ?? '';
+    default:
+      return '';
+  }
 }
 
 function predictedAdvancers(bracket) {

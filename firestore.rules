@@ -32,13 +32,70 @@ service cloud.firestore {
       );
     }
 
-    function beforeFirstKickoff() {
-      return request.time < timestamp.value("2026-06-11T19:00:00Z");
+    function contestConfigPath() {
+      return /databases/$(database)/documents/globalContest/current/config/current;
+    }
+
+    function contestConfigData() {
+      return get(contestConfigPath()).data;
+    }
+
+    function lockAtTimestamp() {
+      let raw = contestConfigData().lockAt;
+      return raw is timestamp
+        ? raw
+        : timestamp.value(
+            raw is string && !raw.matches('.*Z$') && !raw.matches('.*[+-][0-9]{2}:[0-9]{2}$')
+              ? raw + 'Z'
+              : raw
+          );
+    }
+
+    // Match admin contest settings: accepting submissions ON and before lock time.
+    function submissionsOpen() {
+      return exists(contestConfigPath())
+        && (
+          !('isAcceptingSubmissions' in contestConfigData())
+          || contestConfigData().isAcceptingSubmissions == true
+        )
+        && ('lockAt' in contestConfigData())
+        && request.time < lockAtTimestamp();
     }
 
     function validUsername(username) {
       return username is string
         && username.matches('^[A-Za-z0-9_]{3,20}$');
+    }
+
+    function hasUserProfile() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function chatMessageCoreUnchanged() {
+      return request.resource.data.userId == resource.data.userId
+        && request.resource.data.username == resource.data.username
+        && request.resource.data.text == resource.data.text
+        && request.resource.data.isEdited == resource.data.isEdited
+        && request.resource.data.isDeleted == resource.data.isDeleted
+        && request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    function canReactToChatMessage() {
+      return signedIn()
+        && hasUserProfile()
+        && !resource.data.isDeleted
+        && chatMessageCoreUnchanged()
+        && request.resource.data.reactions is map
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions', 'updatedAt']);
+    }
+
+    function canEditOwnChatMessage() {
+      return signedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.username == resource.data.username
+        && request.resource.data.text is string
+        && request.resource.data.text.size() <= 1000;
     }
 
     match /users/{userId} {
@@ -97,7 +154,7 @@ service cloud.firestore {
     match /globalContest/{contestId}/brackets/{userId} {
       allow read: if true;
       allow create, update: if isSelf(userId)
-        && beforeFirstKickoff()
+        && submissionsOpen()
         && request.resource.data.status in ['draft', 'submitted'];
       allow update: if isAdmin();
       allow delete: if false;
@@ -123,12 +180,7 @@ service cloud.firestore {
         && request.resource.data.text is string
         && request.resource.data.text.size() > 0
         && request.resource.data.text.size() <= 1000;
-      allow update: if signedIn()
-        && resource.data.userId == request.auth.uid
-        && request.resource.data.userId == resource.data.userId
-        && request.resource.data.username == resource.data.username
-        && request.resource.data.text is string
-        && request.resource.data.text.size() <= 1000;
+      allow update: if canReactToChatMessage() || canEditOwnChatMessage();
       allow delete: if false;
     }
 

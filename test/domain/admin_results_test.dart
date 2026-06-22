@@ -119,9 +119,20 @@ void main() {
       final recalculator = const LeaderboardRecalculator();
       final scored = recalculator.scoreBrackets(
         brackets: [bracket],
-        officialResults: const OfficialResults(
-          advancingCountryIds: {'usa', 'canada'},
-          knockoutWinnersBySlot: {'m73': 'usa'},
+        officialResults: OfficialResults(
+          advancingCountryIds: const {'usa', 'canada'},
+          knockoutWinnersBySlot: const {'m73': 'usa'},
+          groupPlacements: OfficialGroupPlacements(
+            groupPicks: const [
+              GroupPick(
+                groupId: 'A',
+                firstCountryId: 'usa',
+                secondCountryId: 'mexico',
+                thirdCountryId: 'canada',
+              ),
+            ],
+            bestThirdGroupIds: const ['A'],
+          ),
         ),
         pointsPerCorrectPick: 1,
       );
@@ -134,8 +145,8 @@ void main() {
 
       expect(entries, hasLength(1));
       expect(entries.single.rank, 1);
-      expect(entries.single.score, 3);
-      expect(entries.single.groupScore, 2);
+      expect(entries.single.score, 10);
+      expect(entries.single.groupScore, 9);
       expect(entries.single.knockoutScore, 1);
       expect(entries.single.updatedAt, updatedAt);
     });

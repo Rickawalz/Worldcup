@@ -189,6 +189,47 @@ class AppStrings {
       isSpanish
           ? 'El concurso global está bloqueado. Las selecciones son de solo lectura.'
           : 'The global contest is locked. Picks are read-only.';
+  String get submissionsClosedByAdmin =>
+      isSpanish
+          ? 'El administrador cerró las inscripciones. Las selecciones son de solo lectura.'
+          : 'The admin closed submissions. Picks are read-only.';
+  String adminSubmissionsOpen(String lockAtLocal) =>
+      isSpanish
+          ? 'Inscripciones ABIERTAS hasta $lockAtLocal'
+          : 'Submissions OPEN until $lockAtLocal';
+  String get adminSubmissionsClosedByAdmin =>
+      isSpanish
+          ? 'Inscripciones CERRADAS — desactivadas por el admin'
+          : 'Submissions CLOSED — turned off by admin';
+  String adminSubmissionsClosedByLock(String lockAtLocal) =>
+      isSpanish
+          ? 'Inscripciones CERRADAS — fecha límite pasó ($lockAtLocal)'
+          : 'Submissions CLOSED — lock time passed ($lockAtLocal)';
+  String get adminSubmissionsOpenHint =>
+      isSpanish
+          ? 'Los jugadores pueden guardar y enviar brackets hasta la fecha límite.'
+          : 'Players can save and submit brackets until the lock time.';
+  String get adminSubmissionsClosedByAdminHint =>
+      isSpanish
+          ? 'Usa el interruptor para volver a abrir, o ajusta la fecha límite.'
+          : 'Use the switch to reopen, or adjust the lock time.';
+  String get adminSubmissionsClosedByLockHint =>
+      isSpanish
+          ? 'Mueve la fecha límite al futuro y abre inscripciones para reabrir.'
+          : 'Move lock time to the future and turn accepting submissions on to reopen.';
+  String get saveLockTime => isSpanish ? 'Guardar fecha límite' : 'Save lock time';
+  String get closeSubmissionsTitle =>
+      isSpanish ? '¿Cerrar inscripciones?' : 'Close submissions?';
+  String get closeSubmissionsBody =>
+      isSpanish
+          ? 'Nadie podrá guardar ni enviar brackets hasta que vuelvas a abrir.'
+          : 'Nobody can save or submit brackets until you reopen submissions.';
+  String get openSubmissionsTitle =>
+      isSpanish ? '¿Abrir inscripciones?' : 'Open submissions?';
+  String openSubmissionsBody(String lockAtLocal) =>
+      isSpanish
+          ? 'Los jugadores podrán editar hasta $lockAtLocal (o hasta que cierres de nuevo).'
+          : 'Players can edit until $lockAtLocal (or until you close again).';
   String get autosaveEnabled =>
       isSpanish
           ? 'El autoguardado está activado. Completa cada grupo y cada ronda antes del primer partido.'
@@ -283,8 +324,8 @@ class AppStrings {
       isSpanish ? 'Tabla global' : 'Global leaderboard';
   String get scoringExplainer =>
       isSpanish
-          ? 'Puntuación simple: cada selección correcta vale un punto. El marcador de la final desempata.'
-          : 'Flat scoring: every correct pick is worth one point. Final score prediction breaks ties.';
+          ? 'Grupos: +1 si tu equipo queda en el top 3, +2 extra si aciertas el puesto exacto. Eliminatorias: 1/2/4/8/16 pts (cada ronda vale el doble). El marcador de la final desempata.'
+          : 'Groups: +1 if your pick finishes top 3, +2 extra for the exact spot. Knockouts: 1/2/4/8/16 pts (each round doubles). Final score prediction breaks ties.';
   String get rank => isSpanish ? 'Lugar' : 'Rank';
   String get score => isSpanish ? 'Puntos' : 'Score';
   String get tie => isSpanish ? 'Desempate' : 'Tie';

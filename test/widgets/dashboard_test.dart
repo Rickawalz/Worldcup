@@ -36,4 +36,36 @@ void main() {
     expect(find.text('12'), findsOneWidget);
     expect(find.text('groups'), findsOneWidget);
   });
+
+  testWidgets('compact dashboard header hides subtitle and uses single row', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildDashboardTheme(),
+        home: const Scaffold(
+          body: DashboardBackground(
+            child: DashboardHeader(
+              title: 'Global chat',
+              subtitle: 'Private beta chat for all users.',
+              icon: Icons.chat_bubble_outline,
+              compact: true,
+              stats: [
+                DashboardStat(
+                  label: 'live room',
+                  value: 'Fans',
+                  icon: Icons.forum_outlined,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Global chat'), findsOneWidget);
+    expect(find.text('Private beta chat for all users.'), findsNothing);
+    expect(find.text('Fans'), findsOneWidget);
+    expect(find.text('live room'), findsOneWidget);
+  });
 }

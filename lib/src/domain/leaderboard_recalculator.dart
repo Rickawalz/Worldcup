@@ -12,7 +12,7 @@ class LeaderboardRecalculator {
     required int pointsPerCorrectPick,
   }) {
     final actualResults = ActualResults(
-      advancingCountryIds: officialResults.advancingCountryIds,
+      groupPlacements: officialResults.groupPlacements,
       knockoutWinnersBySlot: officialResults.knockoutWinnersBySlot,
       finalChampionScore: officialResults.finalChampionScore,
       finalRunnerUpScore: officialResults.finalRunnerUpScore,

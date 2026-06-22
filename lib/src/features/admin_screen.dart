@@ -6,6 +6,7 @@ import '../admin/admin_access.dart';
 import '../data/providers.dart';
 import '../domain/admin_validators.dart';
 import '../domain/bracket_rules.dart';
+import '../domain/contest_submission_status.dart';
 import '../domain/models.dart';
 import '../localization/app_strings.dart';
 import '../localization/country_names.dart';
@@ -1149,26 +1150,40 @@ class _ContestSettingsSection extends ConsumerStatefulWidget {
 class _ContestSettingsSectionState
     extends ConsumerState<_ContestSettingsSection> {
   final _lockAtController = TextEditingController();
-  final _pointsController = TextEditingController();
-  bool _isAcceptingSubmissions = true;
   bool _initialized = false;
-  bool _isSaving = false;
+  bool _isSavingLockAt = false;
+  bool _isSavingSubmissions = false;
 
   @override
   void dispose() {
     _lockAtController.dispose();
-    _pointsController.dispose();
     super.dispose();
   }
 
   @override
+  void didUpdateWidget(covariant _ContestSettingsSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.config.lockAt != widget.config.lockAt && !_isSavingLockAt) {
+      _lockAtController.text = widget.config.lockAt.toIso8601String();
+    }
+  }
+
+  bool get _isSaving => _isSavingLockAt || _isSavingSubmissions;
+
+  @override
   Widget build(BuildContext context) {
+    final strings = context.strings;
     if (!_initialized) {
       _lockAtController.text = widget.config.lockAt.toIso8601String();
-      _pointsController.text = widget.config.pointsPerCorrectPick.toString();
-      _isAcceptingSubmissions = widget.config.isAcceptingSubmissions;
       _initialized = true;
     }
+    final statusMessage = adminSubmissionStatusMessage(strings, widget.config);
+    final statusHint = adminSubmissionStatusHint(strings, widget.config);
+    final statusColor =
+        widget.config.areSubmissionsOpen
+            ? DashboardColors.emerald
+            : DashboardColors.gold;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1181,46 +1196,80 @@ class _ContestSettingsSectionState
             ),
             const SizedBox(height: 8),
             const Text(
-              'Use this to close submissions, adjust the lock time, or fix scoring setup without editing Firestore by hand.',
+              'The submissions switch saves immediately. Lock time saves separately below.',
             ),
             const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: statusColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: statusColor.withValues(alpha: 0.45)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    statusMessage,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: statusColor,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(statusHint, style: Theme.of(context).textTheme.bodySmall),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: widget.config.isAcceptingSubmissions,
+              title: const Text('Accepting submissions'),
+              subtitle: const Text('Saves immediately when changed'),
+              onChanged: _isSaving ? null : _onAcceptingSubmissionsChanged,
+            ),
+            if (_isSavingSubmissions)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 8),
+                child: LinearProgressIndicator(),
+              ),
+            const SizedBox(height: 12),
             TextField(
               controller: _lockAtController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Lock at (ISO date/time)',
                 helperText: 'Example: 2026-06-11T19:00:00.000Z',
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
+                suffixIcon:
+                    _isSavingLockAt
+                        ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox.square(
+                            dimension: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                        : null,
               ),
             ),
             const SizedBox(height: 12),
-            SwitchListTile(
-              value: _isAcceptingSubmissions,
-              title: const Text('Accepting submissions'),
-              onChanged:
-                  (value) => setState(() => _isAcceptingSubmissions = value),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _pointsController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Points per correct pick',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
             Align(
               alignment: Alignment.centerLeft,
               child: FilledButton.icon(
-                onPressed: _isSaving ? null : _save,
-                icon:
-                    _isSaving
-                        ? const SizedBox.square(
-                          dimension: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                        : const Icon(Icons.save_outlined),
-                label: const Text('Save settings'),
+                onPressed: _isSaving ? null : _saveLockAt,
+                icon: const Icon(Icons.schedule),
+                label: Text(strings.saveLockTime),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text('Scoring rules'),
+              subtitle: Text(
+                'Groups: +1 if your pick finishes top 3, +2 extra for the exact spot.\n'
+                'Knockouts: Round of 32 = 1 pt, Round of 16 = 2, QF = 4, SF = 8, Final = 16.',
               ),
             ),
           ],
@@ -1229,49 +1278,87 @@ class _ContestSettingsSectionState
     );
   }
 
-  Future<void> _save() async {
-    final lockAt = DateTime.tryParse(_lockAtController.text.trim());
-    final points = int.tryParse(_pointsController.text.trim());
-    if (lockAt == null) {
-      _showSnack('Enter a valid ISO lock time.');
-      return;
-    }
-    if (points == null || points <= 0) {
-      _showSnack('Points per correct pick must be greater than zero.');
-      return;
-    }
-    final scoringChanged = points != widget.config.pointsPerCorrectPick;
-    final note = await _confirmAdminChange(
-      context,
-      title:
-          scoringChanged
-              ? 'High-risk scoring change'
-              : 'Save contest settings?',
-      body:
-          scoringChanged
-              ? 'This changes scoring for every submitted bracket. It will write an audit log and recalculate the leaderboard.'
-              : 'This will update contest settings and write an audit log.',
-      requireNote: scoringChanged,
+  Future<void> _onAcceptingSubmissionsChanged(bool value) async {
+    final strings = context.strings;
+    final lockAtLabel = widget.config.lockAt.toLocal().toString();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text(
+              value ? strings.openSubmissionsTitle : strings.closeSubmissionsTitle,
+            ),
+            content: Text(
+              value
+                  ? strings.openSubmissionsBody(lockAtLabel)
+                  : strings.closeSubmissionsBody,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: Text(value ? 'Open' : 'Close'),
+              ),
+            ],
+          ),
     );
-    if (!mounted || note == null) return;
-    setState(() => _isSaving = true);
+    if (!mounted || confirmed != true) {
+      return;
+    }
+
+    setState(() => _isSavingSubmissions = true);
     try {
       await ref
           .read(appRepositoryProvider)
           .updateContestConfig(
-            widget.config.copyWith(
-              lockAt: lockAt,
-              isAcceptingSubmissions: _isAcceptingSubmissions,
-              pointsPerCorrectPick: points,
-            ),
-            note: note,
-            recalculateAfterSave: scoringChanged,
+            widget.config.copyWith(isAcceptingSubmissions: value),
+            note: value ? 'Submissions reopened' : 'Submissions closed',
           );
-      _showSnack('Contest settings saved.');
+      if (!mounted) return;
+      _showSnack(
+        value ? 'Submissions are now open.' : 'Submissions are now closed.',
+      );
+    } catch (error) {
+      _showSnack('Could not update submissions: $error');
+    } finally {
+      if (mounted) setState(() => _isSavingSubmissions = false);
+    }
+  }
+
+  Future<void> _saveLockAt() async {
+    final lockAt = DateTime.tryParse(_lockAtController.text.trim());
+    if (lockAt == null) {
+      _showSnack('Enter a valid ISO lock time.');
+      return;
+    }
+    final normalizedLockAt = lockAt.toUtc();
+    final note = await _confirmAdminChange(
+      context,
+      title: 'Save lock time?',
+      body:
+          'Players ${widget.config.isAcceptingSubmissions ? 'can' : 'cannot'} '
+          'submit now. New lock: ${normalizedLockAt.toLocal()}.',
+      requireNote: false,
+    );
+    if (!mounted || note == null) return;
+
+    setState(() => _isSavingLockAt = true);
+    try {
+      await ref
+          .read(appRepositoryProvider)
+          .updateContestConfig(
+            widget.config.copyWith(lockAt: normalizedLockAt),
+            note: note,
+          );
+      if (!mounted) return;
+      _showSnack('Lock time saved.');
     } catch (error) {
       _showSnack('Save failed: $error');
     } finally {
-      if (mounted) setState(() => _isSaving = false);
+      if (mounted) setState(() => _isSavingLockAt = false);
     }
   }
 

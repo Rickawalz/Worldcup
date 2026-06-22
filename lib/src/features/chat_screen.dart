@@ -31,15 +31,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final strings = context.strings;
     final user = ref.watch(currentUserProvider);
     final messages = ref.watch(globalChatMessagesProvider);
+    final isCompact = MediaQuery.sizeOf(context).width < 640;
 
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+          padding: EdgeInsets.fromLTRB(
+            isCompact ? 12 : 24,
+            isCompact ? 12 : 24,
+            isCompact ? 12 : 24,
+            isCompact ? 4 : 8,
+          ),
           child: DashboardHeader(
             title: strings.globalChat,
             subtitle: strings.chatExplainer,
             icon: Icons.chat_bubble_outline,
+            compact: isCompact,
             stats: [
               DashboardStat(
                 label: 'live room',
@@ -57,7 +64,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               }
               return ListView.separated(
                 reverse: true,
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.all(isCompact ? 12 : 24),
                 itemCount: items.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 8),
                 itemBuilder: (context, index) {
@@ -355,10 +362,17 @@ class _MessageCardState extends ConsumerState<_MessageCard> {
     });
   }
 
-  Future<void> _react(String emoji) {
-    return ref
-        .read(appRepositoryProvider)
-        .reactToChatMessage(messageId: widget.message.id, emoji: emoji);
+  Future<void> _react(String emoji) async {
+    try {
+      await ref
+          .read(appRepositoryProvider)
+          .reactToChatMessage(messageId: widget.message.id, emoji: emoji);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not add reaction: $error')),
+      );
+    }
   }
 
   String _initial(String username) {

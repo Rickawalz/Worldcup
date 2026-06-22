@@ -5,6 +5,7 @@ import 'package:printing/printing.dart';
 
 import '../data/providers.dart';
 import '../domain/bracket_rules.dart';
+import '../domain/contest_submission_status.dart';
 import '../domain/models.dart';
 import 'bracket_pdf/bracket_pdf_builder.dart';
 import '../localization/app_strings.dart';
@@ -60,12 +61,11 @@ class BracketScreen extends ConsumerWidget {
 
                     return DashboardPage(
                       title: context.strings.yourGlobalBracket,
-                      subtitle:
-                          configValue.isLocked
-                              ? context.strings.bracketReadOnly
-                              : bracketValue.status == BracketStatus.submitted
-                              ? context.strings.bracketSubmitted
-                              : context.strings.autosaveEnabled,
+                      subtitle: bracketEditingStatusMessage(
+                        context.strings,
+                        configValue,
+                        bracketValue.status,
+                      ),
                       icon: Icons.account_tree_outlined,
                       stats: [
                         DashboardStat(
@@ -95,7 +95,7 @@ class BracketScreen extends ConsumerWidget {
                               countryList,
                             ),
                             _isBracketLockedProvider.overrideWithValue(
-                              configValue.isLocked,
+                              configValue.isBracketEditingLocked,
                             ),
                           ],
                           child: Column(
@@ -197,11 +197,11 @@ class _BracketHeader extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              config.isLocked
-                  ? context.strings.bracketReadOnly
-                  : bracket.status == BracketStatus.submitted
-                  ? context.strings.bracketSubmitted
-                  : context.strings.autosaveEnabled,
+              bracketEditingStatusMessage(
+                context.strings,
+                config,
+                bracket.status,
+              ),
             ),
             const SizedBox(height: 8),
             LinearProgressIndicator(
@@ -1443,6 +1443,10 @@ class _SubmitBar extends ConsumerWidget {
             Text(
               isSubmitted
                   ? context.strings.bracketSubmitted
+                  : !config.areSubmissionsOpen
+                  ? (!config.isAcceptingSubmissions
+                      ? context.strings.submissionsClosedByAdmin
+                      : context.strings.bracketReadOnly)
                   : canSubmit
                   ? context.strings.completeReady
                   : context.strings.completeBeforeSubmit,

@@ -425,7 +425,7 @@ class FirebaseAppRepository implements AppRepository {
   @override
   Future<void> saveBracket(Bracket bracket) async {
     final config = await _currentConfig();
-    if (!config.isAcceptingSubmissions || config.isLocked) {
+    if (!config.areSubmissionsOpen) {
       throw StateError('This bracket is locked.');
     }
     await _firestore

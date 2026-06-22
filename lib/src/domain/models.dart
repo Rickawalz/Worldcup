@@ -482,6 +482,12 @@ class GlobalContestConfig {
 
   bool get isLocked => DateTime.now().isAfter(lockAt);
 
+  /// True when users can still save and submit brackets.
+  bool get areSubmissionsOpen => isAcceptingSubmissions && !isLocked;
+
+  /// True when bracket picks should be read-only in the UI.
+  bool get isBracketEditingLocked => !areSubmissionsOpen;
+
   factory GlobalContestConfig.fromMap(Map<String, Object?> map) {
     return GlobalContestConfig(
       lockAt:
@@ -495,7 +501,7 @@ class GlobalContestConfig {
   }
 
   Map<String, Object?> toMap() => {
-    'lockAt': lockAt.toIso8601String(),
+    'lockAt': lockAt.toUtc().toIso8601String(),
     'isAcceptingSubmissions': isAcceptingSubmissions,
     'pointsPerCorrectPick': pointsPerCorrectPick,
     'updatedAt': updatedAt?.toIso8601String(),
