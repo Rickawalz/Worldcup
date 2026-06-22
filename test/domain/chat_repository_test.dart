@@ -33,13 +33,27 @@ void main() {
 
     await repository.editChatMessage(messageId: created.id, text: 'Vamos!!');
     await repository.reactToChatMessage(messageId: created.id, emoji: '⚽');
-    await repository.reactToChatMessage(messageId: created.id, emoji: '⚽');
     messages = await repository.watchGlobalChatMessages().first;
-    final edited = messages.firstWhere((message) => message.id == created.id);
+    var edited = messages.firstWhere((message) => message.id == created.id);
 
     expect(edited.text, 'Vamos!!');
     expect(edited.isEdited, isTrue);
     expect(edited.reactionCounts()['⚽'], 1);
+    expect(edited.hasUserReacted(created.userId, '⚽'), isTrue);
+
+    await repository.reactToChatMessage(messageId: created.id, emoji: '⚽');
+    messages = await repository.watchGlobalChatMessages().first;
+    edited = messages.firstWhere((message) => message.id == created.id);
+
+    expect(edited.reactionCounts()['⚽'], isNull);
+    expect(edited.hasUserReacted(created.userId, '⚽'), isFalse);
+
+    await repository.reactToChatMessage(messageId: created.id, emoji: '⚽');
+    await repository.reactToChatMessage(messageId: created.id, emoji: '🔥');
+    messages = await repository.watchGlobalChatMessages().first;
+    edited = messages.firstWhere((message) => message.id == created.id);
+
+    expect(edited.reactionCounts(), {'⚽': 1, '🔥': 1});
 
     await repository.deleteChatMessage(created.id);
     messages = await repository.watchGlobalChatMessages().first;

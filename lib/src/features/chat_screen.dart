@@ -208,6 +208,7 @@ class _MessageCardState extends ConsumerState<_MessageCard> {
   late final TextEditingController _editController;
   bool _isEditing = false;
   String? _editError;
+  Map<String, bool>? _optimisticUserReactions;
 
   @override
   void initState() {
@@ -221,6 +222,44 @@ class _MessageCardState extends ConsumerState<_MessageCard> {
     if (!_isEditing && oldWidget.message.text != widget.message.text) {
       _editController.text = widget.message.text;
     }
+    _syncOptimisticReactions();
+  }
+
+  void _syncOptimisticReactions() {
+    final userId = widget.currentUserId;
+    if (_optimisticUserReactions == null || userId == null) return;
+
+    _optimisticUserReactions!.removeWhere((emoji, optimistic) {
+      return optimistic ==
+          widget.message.hasUserReacted(userId, emoji);
+    });
+    if (_optimisticUserReactions!.isEmpty) {
+      _optimisticUserReactions = null;
+    }
+  }
+
+  bool _userHasReacted(String emoji) {
+    final userId = widget.currentUserId;
+    if (userId == null) return false;
+
+    final optimistic = _optimisticUserReactions?[emoji];
+    if (optimistic != null) return optimistic;
+
+    return widget.message.hasUserReacted(userId, emoji);
+  }
+
+  int _reactionCount(String emoji) {
+    var count = widget.message.reactionCounts()[emoji] ?? 0;
+    final userId = widget.currentUserId;
+    final optimistic = _optimisticUserReactions?[emoji];
+    if (userId == null || optimistic == null) {
+      return count;
+    }
+
+    final serverHas = widget.message.hasUserReacted(userId, emoji);
+    if (optimistic && !serverHas) count++;
+    if (!optimistic && serverHas) count--;
+    return count;
   }
 
   @override
@@ -325,13 +364,9 @@ class _MessageCardState extends ConsumerState<_MessageCard> {
                   for (final emoji in ChatMessage.quickReactionEmojis)
                     _ReactionChip(
                       emoji: emoji,
-                      count: message.reactionCounts()[emoji] ?? 0,
-                      enabled: widget.currentUserId == null
-                          ? false
-                          : !message.hasUserReacted(
-                            widget.currentUserId!,
-                            emoji,
-                          ),
+                      count: _reactionCount(emoji),
+                      isSelected: _userHasReacted(emoji),
+                      enabled: widget.currentUserId != null,
                       onReact: () => _react(emoji),
                     ),
                 ],
@@ -364,15 +399,26 @@ class _MessageCardState extends ConsumerState<_MessageCard> {
   }
 
   Future<void> _react(String emoji) async {
+    if (widget.currentUserId == null) return;
+
+    final hadReacted = _userHasReacted(emoji);
+    setState(() {
+      _optimisticUserReactions ??= {};
+      _optimisticUserReactions![emoji] = !hadReacted;
+    });
+
     try {
       await ref
           .read(appRepositoryProvider)
           .reactToChatMessage(messageId: widget.message.id, emoji: emoji);
-    } catch (error) {
+    } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not add reaction: $error')),
-      );
+      setState(() {
+        _optimisticUserReactions?.remove(emoji);
+        if (_optimisticUserReactions?.isEmpty ?? false) {
+          _optimisticUserReactions = null;
+        }
+      });
     }
   }
 
@@ -429,12 +475,14 @@ class _ReactionChip extends StatelessWidget {
   const _ReactionChip({
     required this.emoji,
     required this.count,
+    required this.isSelected,
     required this.enabled,
     required this.onReact,
   });
 
   final String emoji;
   final int count;
+  final bool isSelected;
   final bool enabled;
   final VoidCallback onReact;
 
@@ -445,6 +493,14 @@ class _ReactionChip extends StatelessWidget {
       tooltip: enabled ? context.strings.addReaction : null,
       label: Text(label),
       onPressed: enabled ? onReact : null,
+      backgroundColor:
+          isSelected
+              ? DashboardColors.emerald.withValues(alpha: 0.35)
+              : null,
+      side:
+          isSelected
+              ? BorderSide(color: DashboardColors.gold.withValues(alpha: 0.8))
+              : null,
     );
   }
 }

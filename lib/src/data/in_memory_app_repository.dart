@@ -665,9 +665,16 @@ class InMemoryAppRepository implements AppRepository {
     final userReactions = List<String>.from(
       reactionsByUser[user.id] ?? const [],
     );
-    if (userReactions.contains(trimmedEmoji)) return;
-    userReactions.add(trimmedEmoji);
-    reactionsByUser[user.id] = userReactions;
+    if (userReactions.contains(trimmedEmoji)) {
+      userReactions.remove(trimmedEmoji);
+    } else {
+      userReactions.add(trimmedEmoji);
+    }
+    if (userReactions.isEmpty) {
+      reactionsByUser.remove(user.id);
+    } else {
+      reactionsByUser[user.id] = userReactions;
+    }
     _chatMessages[index] = message.copyWith(
       reactionsByUser: reactionsByUser,
       updatedAt: DateTime.now(),

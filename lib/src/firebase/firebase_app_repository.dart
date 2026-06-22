@@ -840,11 +840,17 @@ class FirebaseAppRepository implements AppRepository {
       snapshot.id,
       snapshot.data() ?? const {},
     );
-    if (message.hasUserReacted(profile.id, trimmedEmoji)) return;
-    await ref.update({
-      'reactionsByUser.${profile.id}': FieldValue.arrayUnion([trimmedEmoji]),
-      'updatedAt': DateTime.now().toIso8601String(),
-    });
+    if (message.hasUserReacted(profile.id, trimmedEmoji)) {
+      await ref.update({
+        'reactionsByUser.${profile.id}': FieldValue.arrayRemove([trimmedEmoji]),
+        'updatedAt': DateTime.now().toIso8601String(),
+      });
+    } else {
+      await ref.update({
+        'reactionsByUser.${profile.id}': FieldValue.arrayUnion([trimmedEmoji]),
+        'updatedAt': DateTime.now().toIso8601String(),
+      });
+    }
   }
 
   @override

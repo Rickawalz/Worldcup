@@ -86,6 +86,10 @@ service cloud.firestore {
       let after = request.resource.data.get('reactionsByUser', {});
       let beforeMine = before.get(uid, []);
       let afterMine = after.get(uid, []);
+      let addedOne = afterMine.hasAll(beforeMine)
+        && afterMine.size() == beforeMine.size() + 1;
+      let removedOne = beforeMine.hasAll(afterMine)
+        && beforeMine.size() == afterMine.size() + 1;
       return signedIn()
         && hasUserProfile()
         && !resource.data.isDeleted
@@ -94,8 +98,8 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactionsByUser', 'updatedAt'])
         && after.diff(before).affectedKeys().hasOnly([uid])
         && afterMine is list
-        && afterMine.hasAll(beforeMine)
-        && afterMine.size() <= beforeMine.size() + 1;
+        && beforeMine is list
+        && (addedOne || removedOne);
     }
 
     function canEditOwnChatMessage() {
