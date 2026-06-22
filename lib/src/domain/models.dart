@@ -1073,12 +1073,13 @@ class ChatMessage {
     required this.text,
     required this.createdAt,
     required this.updatedAt,
-    this.reactions = const {},
+    this.reactionsByUser = const {},
     this.isEdited = false,
     this.isDeleted = false,
   });
 
   static const maxTextLength = 1000;
+  static const quickReactionEmojis = ['⚽', '🔥', '👏', '🏆'];
 
   final String id;
   final String userId;
@@ -1086,14 +1087,29 @@ class ChatMessage {
   final String text;
   final DateTime createdAt;
   final DateTime updatedAt;
-  final Map<String, int> reactions;
+  final Map<String, List<String>> reactionsByUser;
   final bool isEdited;
   final bool isDeleted;
 
   bool canBeChangedBy(String currentUserId) => userId == currentUserId;
 
+  bool hasUserReacted(String currentUserId, String emoji) {
+    return reactionsByUser[currentUserId]?.contains(emoji) ?? false;
+  }
+
+  Map<String, int> reactionCounts() {
+    final counts = <String, int>{};
+    for (final emojis in reactionsByUser.values) {
+      for (final emoji in emojis) {
+        counts[emoji] = (counts[emoji] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }
+
   factory ChatMessage.fromMap(String id, Map<String, Object?> map) {
-    final rawReactions = map['reactions'] as Map<dynamic, dynamic>? ?? const {};
+    final rawReactionsByUser =
+        map['reactionsByUser'] as Map<dynamic, dynamic>? ?? const {};
     return ChatMessage(
       id: id,
       userId: map['userId'] as String? ?? '',
@@ -1105,8 +1121,13 @@ class ChatMessage {
       updatedAt:
           DateTime.tryParse(map['updatedAt'] as String? ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0),
-      reactions: rawReactions.map(
-        (key, value) => MapEntry('$key', (value as num?)?.toInt() ?? 0),
+      reactionsByUser: rawReactionsByUser.map(
+        (userId, emojis) => MapEntry(
+          '$userId',
+          (emojis as List<dynamic>? ?? const [])
+              .map((emoji) => '$emoji')
+              .toList(),
+        ),
       ),
       isEdited: map['isEdited'] as bool? ?? false,
       isDeleted: map['isDeleted'] as bool? ?? false,
@@ -1119,7 +1140,7 @@ class ChatMessage {
     'text': text,
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
-    'reactions': reactions,
+    'reactionsByUser': reactionsByUser,
     'isEdited': isEdited,
     'isDeleted': isDeleted,
     'expiresAt': createdAt.add(const Duration(days: 30)).toIso8601String(),
@@ -1128,7 +1149,7 @@ class ChatMessage {
   ChatMessage copyWith({
     String? text,
     DateTime? updatedAt,
-    Map<String, int>? reactions,
+    Map<String, List<String>>? reactionsByUser,
     bool? isEdited,
     bool? isDeleted,
   }) {
@@ -1139,7 +1160,7 @@ class ChatMessage {
       text: text ?? this.text,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      reactions: reactions ?? this.reactions,
+      reactionsByUser: reactionsByUser ?? this.reactionsByUser,
       isEdited: isEdited ?? this.isEdited,
       isDeleted: isDeleted ?? this.isDeleted,
     );

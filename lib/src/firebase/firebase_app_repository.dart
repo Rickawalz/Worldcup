@@ -831,11 +831,18 @@ class FirebaseAppRepository implements AppRepository {
     required String messageId,
     required String emoji,
   }) async {
-    await _requireProfile();
+    final profile = await _requireProfile();
     final trimmedEmoji = emoji.trim();
     if (trimmedEmoji.isEmpty) return;
-    await _firestore.collection('globalChat').doc(messageId).update({
-      'reactions.$trimmedEmoji': FieldValue.increment(1),
+    final ref = _firestore.collection('globalChat').doc(messageId);
+    final snapshot = await ref.get();
+    final message = ChatMessage.fromMap(
+      snapshot.id,
+      snapshot.data() ?? const {},
+    );
+    if (message.hasUserReacted(profile.id, trimmedEmoji)) return;
+    await ref.update({
+      'reactionsByUser.${profile.id}': FieldValue.arrayUnion([trimmedEmoji]),
       'updatedAt': DateTime.now().toIso8601String(),
     });
   }

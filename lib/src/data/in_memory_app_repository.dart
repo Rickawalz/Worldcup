@@ -81,7 +81,10 @@ class InMemoryAppRepository implements AppRepository {
       text: 'Who is everyone picking to win it all?',
       createdAt: DateTime.now().subtract(const Duration(minutes: 12)),
       updatedAt: DateTime.now().subtract(const Duration(minutes: 12)),
-      reactions: const {'⚽': 2},
+      reactionsByUser: const {
+        'demo-3': ['⚽'],
+        'demo-4': ['⚽'],
+      },
     ),
     ChatMessage(
       id: 'chat-seed-2',
@@ -90,7 +93,7 @@ class InMemoryAppRepository implements AppRepository {
       text: 'Brazil looks dangerous, but France is hard to ignore.',
       createdAt: DateTime.now().subtract(const Duration(minutes: 8)),
       updatedAt: DateTime.now().subtract(const Duration(minutes: 8)),
-      reactions: const {'🔥': 1},
+      reactionsByUser: const {'demo-5': ['🔥']},
     ),
   ];
 
@@ -647,7 +650,7 @@ class InMemoryAppRepository implements AppRepository {
     required String messageId,
     required String emoji,
   }) async {
-    _requireProfile();
+    final user = _requireProfile();
     final trimmedEmoji = emoji.trim();
     if (trimmedEmoji.isEmpty) return;
     final index = _chatMessages.indexWhere(
@@ -655,10 +658,18 @@ class InMemoryAppRepository implements AppRepository {
     );
     if (index == -1) return;
     final message = _chatMessages[index];
-    final reactions = {...message.reactions};
-    reactions[trimmedEmoji] = (reactions[trimmedEmoji] ?? 0) + 1;
+    final reactionsByUser = {
+      for (final entry in message.reactionsByUser.entries)
+        entry.key: List<String>.from(entry.value),
+    };
+    final userReactions = List<String>.from(
+      reactionsByUser[user.id] ?? const [],
+    );
+    if (userReactions.contains(trimmedEmoji)) return;
+    userReactions.add(trimmedEmoji);
+    reactionsByUser[user.id] = userReactions;
     _chatMessages[index] = message.copyWith(
-      reactions: reactions,
+      reactionsByUser: reactionsByUser,
       updatedAt: DateTime.now(),
     );
     _emitChat();

@@ -81,12 +81,21 @@ service cloud.firestore {
     }
 
     function canReactToChatMessage() {
+      let uid = request.auth.uid;
+      let before = resource.data.get('reactionsByUser', {});
+      let after = request.resource.data.get('reactionsByUser', {});
+      let beforeMine = before.get(uid, []);
+      let afterMine = after.get(uid, []);
       return signedIn()
         && hasUserProfile()
         && !resource.data.isDeleted
         && chatMessageCoreUnchanged()
-        && request.resource.data.reactions is map
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions', 'updatedAt']);
+        && request.resource.data.reactionsByUser is map
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactionsByUser', 'updatedAt'])
+        && after.diff(before).affectedKeys().hasOnly([uid])
+        && afterMine is list
+        && afterMine.hasAll(beforeMine)
+        && afterMine.size() <= beforeMine.size() + 1;
     }
 
     function canEditOwnChatMessage() {

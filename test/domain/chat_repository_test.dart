@@ -33,12 +33,13 @@ void main() {
 
     await repository.editChatMessage(messageId: created.id, text: 'Vamos!!');
     await repository.reactToChatMessage(messageId: created.id, emoji: '⚽');
+    await repository.reactToChatMessage(messageId: created.id, emoji: '⚽');
     messages = await repository.watchGlobalChatMessages().first;
     final edited = messages.firstWhere((message) => message.id == created.id);
 
     expect(edited.text, 'Vamos!!');
     expect(edited.isEdited, isTrue);
-    expect(edited.reactions['⚽'], 1);
+    expect(edited.reactionCounts()['⚽'], 1);
 
     await repository.deleteChatMessage(created.id);
     messages = await repository.watchGlobalChatMessages().first;

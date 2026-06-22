@@ -322,16 +322,17 @@ class _MessageCardState extends ConsumerState<_MessageCard> {
                 runSpacing: 8,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  for (final entry in message.reactions.entries)
-                    ActionChip(
-                      label: Text('${entry.key} ${entry.value}'),
-                      onPressed: () => _react(entry.key),
-                    ),
-                  for (final emoji in const ['⚽', '🔥', '👏', '🏆'])
-                    ActionChip(
-                      tooltip: strings.addReaction,
-                      label: Text(emoji),
-                      onPressed: () => _react(emoji),
+                  for (final emoji in ChatMessage.quickReactionEmojis)
+                    _ReactionChip(
+                      emoji: emoji,
+                      count: message.reactionCounts()[emoji] ?? 0,
+                      enabled: widget.currentUserId == null
+                          ? false
+                          : !message.hasUserReacted(
+                            widget.currentUserId!,
+                            emoji,
+                          ),
+                      onReact: () => _react(emoji),
                     ),
                 ],
               ),
@@ -423,3 +424,27 @@ class _EditMessageForm extends StatelessWidget {
 }
 
 enum _MessageAction { edit, delete }
+
+class _ReactionChip extends StatelessWidget {
+  const _ReactionChip({
+    required this.emoji,
+    required this.count,
+    required this.enabled,
+    required this.onReact,
+  });
+
+  final String emoji;
+  final int count;
+  final bool enabled;
+  final VoidCallback onReact;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = count > 0 ? '$emoji $count' : emoji;
+    return ActionChip(
+      tooltip: enabled ? context.strings.addReaction : null,
+      label: Text(label),
+      onPressed: enabled ? onReact : null,
+    );
+  }
+}
