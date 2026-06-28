@@ -5,7 +5,7 @@ import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {onSchedule} from "firebase-functions/v2/scheduler";
 import {onDocumentWritten} from "firebase-functions/v2/firestore";
 import {defineSecret, defineString} from "firebase-functions/params";
-import {calculateStandings, FixtureRecord} from "./standings-calculator";
+import {reconcileTournamentState} from "./leaderboard-recalculator";
 import {
   runWorldCupSync,
   shouldRunScheduledMatchWindowSync,
@@ -75,7 +75,7 @@ export const submitAdminOverride = onCall(async (request) => {
 
 export const recalculateLeaderboard = onCall(async (request) => {
   await assertAdmin(request.auth);
-  await rebuildLeaderboard();
+  return reconcileTournamentState(db, "leaderboard-recalc");
 });
 
 export const scoreBracketOnResult = onDocumentWritten(
@@ -86,16 +86,14 @@ export const scoreBracketOnResult = onDocumentWritten(
       return;
     }
 
-    if (after.stage === "group") {
-      await recalculateStandingsFromFixtures();
-    } else if (after.winnerCountryId) {
+    if (after.stage !== "group" && after.winnerCountryId) {
       await updateKnockoutOfficialResults(
         event.params.fixtureId,
         after as Record<string, unknown>,
       );
     }
 
-    await rebuildLeaderboard();
+    await reconcileTournamentState(db, "score-bracket-trigger");
   },
 );
 
@@ -136,6 +134,7 @@ async function executeSync(source: SyncSource): Promise<SyncSummary> {
   try {
     const summary = await runWorldCupSync(db, token, source);
     await writeSyncState(db, summary, null);
+    await reconcileTournamentState(db, "football-data-sync");
     return summary;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -157,45 +156,6 @@ async function executeSync(source: SyncSource): Promise<SyncSummary> {
     );
     throw error;
   }
-}
-
-async function recalculateStandingsFromFixtures(): Promise<void> {
-  const [fixturesSnap, standingsSnap] = await Promise.all([
-    db.collection("fixtures").get(),
-    db.collection("standings").get(),
-  ]);
-
-  const fixtures: FixtureRecord[] = fixturesSnap.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  })) as FixtureRecord[];
-
-  const existingStandings = standingsSnap.docs.map((doc) => ({
-    groupId: doc.id,
-    overrideOrderCountryIds: doc.get("overrideOrderCountryIds") as
-      | string[]
-      | undefined,
-  }));
-
-  const now = new Date().toISOString();
-  const calculated = calculateStandings(
-    fixtures,
-    existingStandings,
-    now,
-    "score-bracket-trigger",
-  );
-
-  const batch = db.batch();
-  for (const standing of calculated) {
-    batch.set(db.collection("standings").doc(standing.groupId), {
-      groupId: standing.groupId,
-      rows: standing.rows,
-      overrideOrderCountryIds: standing.overrideOrderCountryIds,
-      updatedAt: standing.updatedAt,
-      updatedBy: standing.updatedBy,
-    });
-  }
-  await batch.commit();
 }
 
 async function updateKnockoutOfficialResults(
@@ -267,35 +227,6 @@ function runnerUpScoreFromFixture(fixture: Record<string, unknown>): number | nu
   if (winnerCountryId === homeCountryId) return awayScore;
   if (winnerCountryId === awayCountryId) return homeScore;
   return null;
-}
-
-async function rebuildLeaderboard(): Promise<void> {
-  const brackets = await db.collection("globalContest/current/brackets").get();
-  const rows = brackets.docs.map((doc) => {
-    const data = doc.data();
-    return {
-      userId: doc.id,
-      username: data.username ?? doc.id,
-      score: data.totalScore ?? 0,
-      tiebreakerDistance: data.tiebreakerDistance ?? 0,
-    };
-  });
-  rows.sort((a, b) => {
-    if (b.score !== a.score) {
-      return b.score - a.score;
-    }
-    return a.tiebreakerDistance - b.tiebreakerDistance;
-  });
-
-  const batch = db.batch();
-  rows.forEach((row, index) => {
-    batch.set(db.doc(`leaderboards/global/entries/${row.userId}`), {
-      ...row,
-      rank: index + 1,
-      updatedAt: FieldValue.serverTimestamp(),
-    });
-  });
-  await batch.commit();
 }
 
 async function assertAdmin(
