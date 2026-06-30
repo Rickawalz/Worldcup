@@ -1,5 +1,7 @@
 import 'package:collection/collection.dart';
 
+import 'stored_values.dart';
+
 enum TournamentStage {
   group,
   roundOf32,
@@ -556,7 +558,7 @@ class LeaderboardEntry {
       rank: (map['rank'] as num?)?.toInt() ?? 0,
       groupScore: (map['groupScore'] as num?)?.toInt() ?? 0,
       knockoutScore: (map['knockoutScore'] as num?)?.toInt() ?? 0,
-      updatedAt: DateTime.tryParse(map['updatedAt'] as String? ?? ''),
+      updatedAt: parseStoredDateTime(map['updatedAt']),
     );
   }
 

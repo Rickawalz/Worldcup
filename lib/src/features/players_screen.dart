@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../data/providers.dart';
 import '../domain/bracket_rules.dart';
 import '../domain/models.dart';
+import '../domain/players_ranking.dart';
 import '../localization/app_strings.dart';
 import '../widgets/country_badge.dart';
 import '../widgets/dashboard.dart';
@@ -15,13 +16,38 @@ class PlayersScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profiles = ref.watch(publicBracketProfilesProvider);
+    final leaderboard = ref.watch(leaderboardProvider);
     final countries = ref.watch(countriesProvider);
     return profiles.when(
       data:
           (items) => countries.when(
             data:
-                (countryList) =>
-                    _PlayersList(profiles: items, countries: countryList),
+                (countryList) => leaderboard.when(
+                  data:
+                      (entries) => _PlayersList(
+                        rankedProfiles: rankPublicBracketProfiles(
+                          profiles: items,
+                          leaderboard: entries,
+                        ),
+                        countries: countryList,
+                      ),
+                  loading:
+                      () => _PlayersList(
+                        rankedProfiles: rankPublicBracketProfiles(
+                          profiles: items,
+                          leaderboard: const [],
+                        ),
+                        countries: countryList,
+                      ),
+                  error:
+                      (_, __) => _PlayersList(
+                        rankedProfiles: rankPublicBracketProfiles(
+                          profiles: items,
+                          leaderboard: const [],
+                        ),
+                        countries: countryList,
+                      ),
+                ),
             loading: () => const Center(child: CircularProgressIndicator()),
             error:
                 (error, _) => Center(
@@ -76,9 +102,12 @@ class PublicBracketScreen extends ConsumerWidget {
 }
 
 class _PlayersList extends StatelessWidget {
-  const _PlayersList({required this.profiles, required this.countries});
+  const _PlayersList({
+    required this.rankedProfiles,
+    required this.countries,
+  });
 
-  final List<PublicBracketProfile> profiles;
+  final List<RankedPlayerProfile> rankedProfiles;
   final List<Country> countries;
 
   @override
@@ -91,7 +120,7 @@ class _PlayersList extends StatelessWidget {
       stats: [
         DashboardStat(
           label: 'submitted brackets',
-          value: '${profiles.length}',
+          value: '${rankedProfiles.length}',
           icon: Icons.assignment_turned_in_outlined,
         ),
         DashboardStat(
@@ -102,7 +131,7 @@ class _PlayersList extends StatelessWidget {
         ),
       ],
       children: [
-        if (profiles.isEmpty)
+        if (rankedProfiles.isEmpty)
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -110,8 +139,11 @@ class _PlayersList extends StatelessWidget {
             ),
           )
         else
-          for (final profile in profiles) ...[
-            _PlayerCard(profile: profile, countryById: countryById),
+          for (final rankedProfile in rankedProfiles) ...[
+            _PlayerCard(
+              rankedProfile: rankedProfile,
+              countryById: countryById,
+            ),
             const SizedBox(height: 8),
           ],
       ],
@@ -120,13 +152,17 @@ class _PlayersList extends StatelessWidget {
 }
 
 class _PlayerCard extends StatelessWidget {
-  const _PlayerCard({required this.profile, required this.countryById});
+  const _PlayerCard({
+    required this.rankedProfile,
+    required this.countryById,
+  });
 
-  final PublicBracketProfile profile;
+  final RankedPlayerProfile rankedProfile;
   final Map<String, Country> countryById;
 
   @override
   Widget build(BuildContext context) {
+    final profile = rankedProfile.profile;
     final champion = countryById[profile.bracket.championCountryId];
     final colorScheme = Theme.of(context).colorScheme;
     return Card(
@@ -143,11 +179,7 @@ class _PlayerCard extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                CircleAvatar(
-                  backgroundColor: colorScheme.primaryContainer,
-                  foregroundColor: colorScheme.onPrimaryContainer,
-                  child: Text(profile.user.username.characters.first),
-                ),
+                _PlayerRankBadge(rank: rankedProfile.rank),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
@@ -178,21 +210,21 @@ class _PlayerCard extends StatelessWidget {
                         children: [
                           _ScoreChip(
                             label: 'Total',
-                            value: profile.bracket.totalScore,
+                            value: rankedProfile.totalScore,
                             color: colorScheme.primaryContainer,
                             textColor: colorScheme.onPrimaryContainer,
                           ),
                           _ScoreChip(
                             label: 'Group',
-                            value: profile.bracket.groupScore,
+                            value: rankedProfile.groupScore,
                           ),
                           _ScoreChip(
                             label: 'Knockout',
-                            value: profile.bracket.knockoutScore,
+                            value: rankedProfile.knockoutScore,
                           ),
                           _ScoreChip(
                             label: 'Tie',
-                            value: profile.bracket.tiebreakerDistance,
+                            value: rankedProfile.tiebreakerDistance,
                           ),
                         ],
                       ),
@@ -324,6 +356,39 @@ class _PublicBracketHeader extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _PlayerRankBadge extends StatelessWidget {
+  const _PlayerRankBadge({required this.rank});
+
+  final int rank;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final (background, foreground) = switch (rank) {
+      1 => (DashboardColors.gold.withValues(alpha: 0.28), DashboardColors.gold),
+      2 => (
+        colorScheme.onSurfaceVariant.withValues(alpha: 0.18),
+        colorScheme.onSurface,
+      ),
+      3 => (
+        DashboardColors.emerald.withValues(alpha: 0.22),
+        DashboardColors.emerald,
+      ),
+      _ => (colorScheme.primaryContainer, colorScheme.onPrimaryContainer),
+    };
+
+    return CircleAvatar(
+      radius: 22,
+      backgroundColor: background,
+      foregroundColor: foreground,
+      child: Text(
+        '#$rank',
+        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
       ),
     );
   }

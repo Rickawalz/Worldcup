@@ -104,6 +104,66 @@ describe("group placements", () => {
     assert.equal(officialPlacementsFromStandings(standings), null);
   });
 
+  it("derives partial placements for completed groups only", () => {
+    const standings = [
+      {
+        groupId: "A",
+        rows: [
+          {
+            countryId: "mexico",
+            rank: 1,
+            played: 3,
+            won: 2,
+            drawn: 1,
+            lost: 0,
+            goalsFor: 5,
+            goalsAgainst: 2,
+            goalDifference: 3,
+            points: 7,
+            form: "W,W,D",
+          },
+          {
+            countryId: "south_africa",
+            rank: 2,
+            played: 3,
+            won: 1,
+            drawn: 2,
+            lost: 0,
+            goalsFor: 4,
+            goalsAgainst: 3,
+            goalDifference: 1,
+            points: 5,
+            form: "D,W,D",
+          },
+          {
+            countryId: "south_korea",
+            rank: 3,
+            played: 3,
+            won: 1,
+            drawn: 0,
+            lost: 2,
+            goalsFor: 2,
+            goalsAgainst: 4,
+            goalDifference: -2,
+            points: 3,
+            form: "L,L,W",
+          },
+        ],
+        overrideOrderCountryIds: [],
+      },
+    ];
+
+    const partial = officialPlacementsFromStandings(standings, {
+      requireAllGroups: false,
+    });
+    const full = officialPlacementsFromStandings(standings);
+
+    assert.ok(partial);
+    assert.equal(partial.groupPicks.length, 1);
+    assert.equal(partial.groupPicks[0].groupId, "A");
+    assert.equal(full, null);
+  });
+
   it("allows auto update for automated sources but not admin overrides", () => {
     assert.equal(shouldAutoUpdateGroupPlacements(undefined), true);
     assert.equal(shouldAutoUpdateGroupPlacements("score-bracket-trigger"), true);

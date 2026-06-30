@@ -6,6 +6,7 @@ import '../domain/bracket_rules.dart';
 import '../domain/leaderboard_recalculator.dart';
 import '../domain/models.dart';
 import '../domain/standings_calculator.dart';
+import '../domain/tournament_reconciler.dart';
 import 'app_repository.dart';
 import 'sample_data.dart';
 import 'username_validator.dart';
@@ -491,13 +492,26 @@ class InMemoryAppRepository implements AppRepository {
   }) async {
     _requireAdmin();
     final now = DateTime.now();
+    final reconciliation = const TournamentReconciler().reconcile(
+      fixtures: _fixtures,
+      existingStandings: _standings,
+      officialResults: _officialResults,
+      updatedAt: now,
+      updatedBy: _user!.id,
+    );
+    _standings = reconciliation.standings;
+    _standingsController.add(_standings);
+    if (reconciliation.officialResultsToPersist != null) {
+      _officialResults = reconciliation.officialResultsToPersist!;
+      _officialResultsController.add(_officialResults);
+    }
     final submittedBrackets = _bracketsByUserId.values.where(
       (bracket) => bracket.status == BracketStatus.submitted,
     );
     final recalculator = const LeaderboardRecalculator();
     final scored = recalculator.scoreBrackets(
       brackets: submittedBrackets,
-      officialResults: _officialResults,
+      officialResults: reconciliation.officialResultsForScoring,
       pointsPerCorrectPick: _config.pointsPerCorrectPick,
     );
     for (final scoredBracket in scored) {

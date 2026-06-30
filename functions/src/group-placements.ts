@@ -30,49 +30,86 @@ export function isGroupStageComplete(fixtures: FixtureRecord[]): boolean {
   );
 }
 
+export function isGroupStandingComplete(standing: GroupStanding): boolean {
+  return (
+    standing.rows.length >= 3 &&
+    standing.rows.every((row) => row.played === 3)
+  );
+}
+
 export function areStandingsComplete(standings: GroupStanding[]): boolean {
   return groupIds.every((groupId) => {
     const standing = standings.find((item) => item.groupId === groupId);
-    return (
-      standing != null &&
-      standing.rows.length >= 3 &&
-      standing.rows.every((row) => row.played === 3)
-    );
+    return standing != null && isGroupStandingComplete(standing);
   });
 }
 
 export function officialPlacementsFromStandings(
   standings: GroupStanding[],
+  options: {requireAllGroups?: boolean} = {},
 ): OfficialGroupPlacements | null {
-  if (!areStandingsComplete(standings)) {
-    return null;
-  }
-
-  const thirdRows: Array<{groupId: string} & StandingRow> = [];
-  const groupPicks: GroupPick[] = [];
+  const requireAllGroups = options.requireAllGroups ?? true;
+  const completeStandings: GroupStanding[] = [];
 
   for (const groupId of groupIds) {
     const standing = standings.find((item) => item.groupId === groupId);
-    if (standing == null || standing.rows.length < 3) {
-      return null;
+    if (standing == null || !isGroupStandingComplete(standing)) {
+      if (requireAllGroups) {
+        return null;
+      }
+      continue;
     }
+    completeStandings.push(standing);
+  }
+
+  if (completeStandings.length === 0) {
+    return null;
+  }
+
+  const groupPicks: GroupPick[] = completeStandings.map((standing) => {
     const rows = standing.rows;
-    thirdRows.push({groupId, ...rows[2]});
-    groupPicks.push({
-      groupId,
+    return {
+      groupId: standing.groupId,
       firstCountryId: rows[0].countryId,
       secondCountryId: rows[1].countryId,
       thirdCountryId: rows[2].countryId,
-    });
+    };
+  });
+
+  return {
+    groupPicks,
+    bestThirdGroupIds: bestThirdGroupIds(completeStandings),
+  };
+}
+
+export function officialPlacementsForScoring(
+  standings: GroupStanding[],
+  storedPlacements: OfficialGroupPlacements | null | undefined,
+): OfficialGroupPlacements | null {
+  return (
+    officialPlacementsFromStandings(standings, {requireAllGroups: false}) ??
+    storedPlacements ??
+    null
+  );
+}
+
+function bestThirdGroupIds(completeStandings: GroupStanding[]): string[] {
+  if (completeStandings.length < 8) {
+    return [];
   }
 
-  const bestThirdGroupIds = thirdRows
-    .sort(compareStandingRows)
+  const thirdRows = completeStandings
+    .filter((standing) => standing.rows.length >= 3)
+    .map((standing) => ({groupId: standing.groupId, row: standing.rows[2]}));
+  if (thirdRows.length < 8) {
+    return [];
+  }
+
+  return thirdRows
+    .sort((a, b) => compareStandingRows(a.row, b.row))
     .slice(0, 8)
     .map((row) => row.groupId)
     .sort();
-
-  return {groupPicks, bestThirdGroupIds};
 }
 
 export function advancingCountryIds(

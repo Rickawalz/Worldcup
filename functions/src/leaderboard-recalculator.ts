@@ -2,6 +2,7 @@ import {Firestore, FieldValue} from "firebase-admin/firestore";
 import {
   advancingCountryIds,
   OfficialGroupPlacements,
+  officialPlacementsForScoring,
   officialPlacementsFromStandings,
   shouldAutoUpdateGroupPlacements,
 } from "./group-placements";
@@ -66,8 +67,13 @@ export async function reconcileTournamentState(
 
   const official = officialSnap.data() ?? {};
   let groupPlacementsUpdated = false;
+  const storedPlacements = parseGroupPlacements(official.groupPlacements);
+  const placementsForScoring = officialPlacementsForScoring(
+    calculatedStandings,
+    storedPlacements,
+  );
   let officialResults: OfficialResultsRecord = {
-    groupPlacements: parseGroupPlacements(official.groupPlacements),
+    groupPlacements: placementsForScoring,
     knockoutWinnersBySlot:
       (official.knockoutWinnersBySlot as Record<string, string> | undefined) ??
       {},
@@ -75,19 +81,19 @@ export async function reconcileTournamentState(
     finalRunnerUpScore: official.finalRunnerUpScore as number | null | undefined,
   };
 
-  const placements = officialPlacementsFromStandings(calculatedStandings);
+  const fullPlacements = officialPlacementsFromStandings(calculatedStandings);
   if (
-    placements != null &&
+    fullPlacements != null &&
     shouldAutoUpdateGroupPlacements(official.updatedBy as string | undefined)
   ) {
     officialResults = {
       ...officialResults,
-      groupPlacements: placements,
+      groupPlacements: fullPlacements,
     };
     await db.doc(OFFICIAL_RESULTS_PATH).set(
       {
-        groupPlacements: placements,
-        advancingCountryIds: advancingCountryIds(placements),
+        groupPlacements: fullPlacements,
+        advancingCountryIds: advancingCountryIds(fullPlacements),
         updatedAt: now,
         updatedBy: updatedBy,
       },
@@ -168,7 +174,7 @@ export async function reconcileTournamentState(
       knockoutScore: entry.knockoutScore,
       tiebreakerDistance: entry.tiebreakerDistance,
       rank: index + 1,
-      updatedAt: FieldValue.serverTimestamp(),
+      updatedAt: now,
     });
   });
   await leaderboardBatch.commit();

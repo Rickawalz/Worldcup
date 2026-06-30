@@ -10,6 +10,7 @@ import '../data/username_validator.dart';
 import '../domain/admin_validators.dart';
 import '../domain/bracket_rules.dart';
 import '../domain/leaderboard_recalculator.dart';
+import '../domain/tournament_reconciler.dart';
 import '../domain/models.dart';
 import '../domain/standings_calculator.dart';
 
@@ -660,6 +661,19 @@ class FirebaseAppRepository implements AppRepository {
     final now = DateTime.now();
     final config = await _currentConfig();
     final officialResults = await _currentOfficialResults();
+    final fixturesSnapshot = await _firestore.collection('fixtures').get();
+    final fixtures =
+        fixturesSnapshot.docs
+            .map((doc) => Fixture.fromMap(doc.id, doc.data()))
+            .toList();
+    final existingStandings = await _currentStandings();
+    final reconciliation = const TournamentReconciler().reconcile(
+      fixtures: fixtures,
+      existingStandings: existingStandings,
+      officialResults: officialResults,
+      updatedAt: now,
+      updatedBy: admin.id,
+    );
     final bracketsSnapshot =
         await _firestore
             .collection('globalContest/current/brackets')
@@ -673,7 +687,7 @@ class FirebaseAppRepository implements AppRepository {
     final recalculator = const LeaderboardRecalculator();
     final scored = recalculator.scoreBrackets(
       brackets: brackets,
-      officialResults: officialResults,
+      officialResults: reconciliation.officialResultsForScoring,
       pointsPerCorrectPick: config.pointsPerCorrectPick,
     );
     final entries = recalculator.buildEntries(
@@ -683,6 +697,18 @@ class FirebaseAppRepository implements AppRepository {
     );
 
     final writes = <void Function(WriteBatch)>[
+      for (final standing in reconciliation.standings)
+        (batch) => batch.set(
+          _firestore.doc('standings/${standing.groupId}'),
+          standing.toMap(),
+          SetOptions(merge: true),
+        ),
+      if (reconciliation.officialResultsToPersist != null)
+        (batch) => batch.set(
+          _officialResultsRef(),
+          reconciliation.officialResultsToPersist!.toMap(),
+          SetOptions(merge: true),
+        ),
       for (final scoredBracket in scored)
         (batch) => batch.set(
           _firestore.doc(
